@@ -2,7 +2,7 @@
 nixPkgs = ["python313", "python313Packages.pip", "ffmpeg", "libsndfile"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["pip install --break-system-packages -r requirements.txt"]
 
 [phases.build]
 cmds = ["python download_models.py"]
