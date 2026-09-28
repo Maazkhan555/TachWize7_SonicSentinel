@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <div class="command-shell" style="height:100vh;overflow:hidden;display:flex;background:var(--bg);position:relative;z-index:2">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <aside class="command-sidebar" style="width:210px;background:rgba(0,0,0,0.96);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%;flex-shrink:0;position:relative;z-index:10">
+
+    <!-- Corner decoration top-right -->
+    <div style="position:absolute;top:0;right:0;width:12px;height:12px;border-top:1px solid var(--accent);border-right:1px solid var(--accent);opacity:0.5;transition:border-color 0.4s"></div>
+
+    <!-- Logo -->
+    <div style="height:56px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+        <div style="width:28px;height:28px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--accent-glow);transition:all 0.4s;position:relative">
+          <i data-lucide="activity" style="width:13px;height:13px;color:var(--accent)"></i>
+          <div style="position:absolute;top:-1px;left:-1px;width:5px;height:5px;border-top:1px solid var(--accent);border-left:1px solid var(--accent);opacity:0.7"></div>
+          <div style="position:absolute;bottom:-1px;right:-1px;width:5px;height:5px;border-bottom:1px solid var(--accent);border-right:1px solid var(--accent);opacity:0.7"></div>
+        </div>
+        <div>
+          <div class="brand-copy" style="font-family:var(--font-display);font-size:10px;font-weight:900;letter-spacing:0.18em;color:var(--text)">SONIC<span style="color:var(--accent);transition:color 0.4s">SENTINEL</span></div>
+          <div class="brand-copy" style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:0.15em;margin-top:1px">ACOUSTIC INTELLIGENCE PLATFORM</div>
+        </div>
+      </a>
+    </div>
+
+    <!-- System status mini -->
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+        <div class="pulse-dot" id="sys-dot" style="width:6px;height:6px"></div>
+        <span class="system-copy" style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.15em;color:var(--muted)" id="sys-status-text">CHECKING…</span>
+      </div>
+      <div class="system-copy" style="font-family:var(--font-mono);font-size:8px;color:var(--muted);opacity:0.7;letter-spacing:0.1em" id="sys-device-text">—</div>
+    </div>
+
+    <!-- Nav -->
+    <nav style="flex:1;padding:10px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:1px">
+      {% set nav_items = [
+        ('/live',    'Live Monitor',    'mic',          'live'),
+        ('/analyze', 'Upload & Analyze','upload-cloud', 'analyze'),
+        ('/history', 'Event History',   'list',         'history'),
+        ('/alerts',  'Alerts',          'bell',         'alerts'),
+        ('/review',  'Review Queue',    'check-circle', 'review'),
+        ('/reports', 'Analytics',       'bar-chart-2',  'reports'),
+        ('/admin',   'System Admin',    'settings',     'admin'),
+      ] %}
+      {% for href, label, icon, key in nav_items %}
+      <a href="{{ href }}" class="sidebar-nav-item {{ 'active' if active == key else '' }}">
+        <i data-lucide="{{ icon }}" style="width:13px;height:13px;flex-shrink:0"></i>
+        <span class="nav-copy">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <!-- Bottom links -->
+    <div class="sidebar-footer-copy" style="padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0">
+      <a href="/" style="display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;color:var(--muted);text-decoration:none;letter-spacing:0.12em;text-transform:uppercase;opacity:0.5;margin-bottom:6px">
+        <i data-lucide="arrow-left" style="width:10px;height:10px"></i> Home
+      </a>
+      <a href="/logout" style="display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;color:var(--muted);text-decoration:none;letter-spacing:0.12em;text-transform:uppercase;opacity:0.5">
+        <i data-lucide="log-out" style="width:10px;height:10px"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Main area ─────────────────────────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;flex:1;min-width:0;position:relative;z-index:2">
+
+    <!-- Topbar -->
+    <header class="command-topbar" style="height:56px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;position:relative">
+      <!-- Left: state + inference -->
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="pulse-dot" id="header-dot"></div>
+          <span style="font-family:var(--font-display);font-size:10px;letter-spacing:0.2em;color:var(--accent);transition:color 0.4s" id="header-state">SYSTEM ONLINE</span>
+        </div>
+        <div style="width:1px;height:14px;background:var(--border)"></div>
+        <span class="topbar-secondary" style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.1em" id="header-inference">LATENCY —</span>
+        <div style="width:1px;height:14px;background:var(--border)"></div>
+        <!-- Model health pills -->
+        <div class="topbar-secondary" style="display:flex;gap:6px" id="header-model-pills">
+          <span style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.1em;padding:2px 7px;border:1px solid var(--border);color:var(--muted)" id="pill-ss">SS —</span>
+          <span style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.1em;padding:2px 7px;border:1px solid var(--border);color:var(--muted)" id="pill-ast">AST —</span>
+        </div>
+      </div>
+      <!-- Right: clock + event count -->
+      <div style="display:flex;align-items:center;gap:16px">
+        <span id="header-mic-status" class="topbar-secondary" style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.1em">MIC IDLE</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.1em" id="header-time"></span>
+        <div style="width:1px;height:14px;background:var(--border)"></div>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.1em">EVT: <span id="header-evt-count">0</span></span>
+        <a class="topbar-secondary" href="/logout" title="Signed in as {{ session.get('user', 'GUEST')|e }}" style="display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-family:var(--font-mono);font-size:9px"><i data-lucide="user-round" style="width:14px;height:14px"></i>{{ session.get('user', 'GUEST')|e }}</a>
+        <a class="topbar-secondary" href="/admin" title="System settings" style="display:flex;align-items:center;color:var(--muted);text-decoration:none"><i data-lucide="settings" style="width:14px;height:14px"></i></a>
+      </div>
+      <!-- Top border accent line -->
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4;transition:background 0.4s"></div>
+    </header>
+
+    <!-- Page content -->
+    <main class="command-main" style="flex:1;overflow-y:auto;padding:20px;background:var(--bg)">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<script>
+// ── Clock ──────────────────────────────────────────────────────────────────
+function updateClock() {
+  const el = document.getElementById('header-time');
+  if (el) {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('en-US',{hour12:false}) + ' UTC';
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Poll system status ─────────────────────────────────────────────────────
+async function pollStatus() {
+  try {
+    const r = await fetch('/api/models/health');
+    const d = await r.json();
+    const ss  = d.sonicsentinel || {};
+    const ast = d.ast || {};
+
+    const ssOnline  = ss.status  === 'online';
+    const astOnline = ast.status === 'online';
+    const anyOnline = ssOnline || astOnline;
+
+    const dot1 = document.getElementById('sys-dot');
+    const dot2 = document.getElementById('header-dot');
+    const txt  = document.getElementById('sys-status-text');
+    const dev  = document.getElementById('sys-device-text');
+    const pillSS  = document.getElementById('pill-ss');
+    const pillAST = document.getElementById('pill-ast');
+
+    const color = anyOnline ? 'var(--success)' : 'var(--danger)';
+    [dot1, dot2].forEach(d => {
+      if (d) { d.style.background = color; d.style.boxShadow = '0 0 6px ' + color; }
+    });
+    if (txt) txt.textContent = anyOnline ? 'MODELS ONLINE' : 'MODELS OFFLINE';
+    if (dev) dev.textContent = (ss.device || '—').toUpperCase();
+
+    if (pillSS) {
+      pillSS.textContent = 'SS ' + (ssOnline ? '●' : '○');
+      pillSS.style.color = ssOnline ? 'var(--success)' : 'var(--danger)';
+      pillSS.style.borderColor = ssOnline ? 'rgba(0,255,136,0.3)' : 'rgba(255,34,68,0.3)';
+    }
+    if (pillAST) {
+      pillAST.textContent = 'AST ' + (astOnline ? '●' : '○');
+      pillAST.style.color = astOnline ? 'var(--success)' : 'var(--danger)';
+      pillAST.style.borderColor = astOnline ? 'rgba(0,255,136,0.3)' : 'rgba(255,34,68,0.3)';
+    }
+
+    // Update event count
+    try {
+      const sr = await fetch('/api/stats');
+      const sd = await sr.json();
+      const ec = document.getElementById('header-evt-count');
+      if (ec) ec.textContent = sd.totalEvents || 0;
+    } catch(e) {}
+  } catch(e) {}
+}
+
+// ── Dashboard state ────────────────────────────────────────────────────────
+window.setDashboardState = function(state, inferenceMs, normalizedClass) {
+  document.body.setAttribute('data-state', state || 'IDLE');
+  if (normalizedClass) document.body.setAttribute('data-class', normalizedClass);
+  const el = document.getElementById('header-state');
+  if (el) {
+    el.textContent = state || 'IDLE';
+    el.classList.add('state-flash');
+    setTimeout(() => el.classList.remove('state-flash'), 2500);
+  }
+  const inf = document.getElementById('header-inference');
+  if (inf && inferenceMs) inf.textContent = 'LATENCY ' + inferenceMs + 'ms';
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  pollStatus();
+  setInterval(pollStatus, 20000);
+  if (window.lucide) lucide.createIcons();
+});
+</script>
+{% endblock %}

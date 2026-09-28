@@ -1,0 +1,29 @@
+# Live Detector — Open-Source Audio Intelligence Dependencies
+# Install with: pip install -r requirements_live.txt
+#
+# These are ADDITIONAL to the existing requirements.txt
+# Do NOT remove existing packages.
+
+flask-socketio==5.5.1
+python-socketio==5.13.0
+simple-websocket==1.1.0
+
+# Already in requirements.txt but listed for clarity:
+# torch>=2.0.0
+# torchaudio>=2.0.0
+# transformers>=4.36.0
+# librosa>=0.10.0
+# numpy>=1.24.0
+# soundfile>=0.12.0
+# openai-whisper>=20230918
+
+# Silero VAD is loaded via torch.hub — no pip install needed.
+# It downloads automatically on first run.
+
+# Speaker diarization (OPTIONAL — requires HF token + gated model access):
+# pip install pyannote.audio
+# See SETUP_LIVE.md for full instructions.
+
+# Emotion estimation:
+# emotion2vec is not available for Python 3.13 via pip.
+# Component is reported as unavailable in the dashboard.

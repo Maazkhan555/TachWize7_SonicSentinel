@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Sign In — SonicSentinel AI{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-black flex overflow-hidden">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex lg:w-5/12 flex-col justify-between p-14 border-r border-white/8 relative overflow-hidden shrink-0">
+    <div class="absolute inset-0 pointer-events-none" style="
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;"></div>
+    <div class="absolute inset-0" style="background:radial-gradient(ellipse 100% 80% at 50% 110%, rgba(255,255,255,0.04) 0%, transparent 70%)"></div>
+
+    <a href="/" class="relative z-10 flex items-center gap-3 group">
+      <div class="relative">
+        <div class="w-8 h-8 border border-white/25 flex items-center justify-center group-hover:bg-white/5 transition-all duration-300">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+        </div>
+        <div class="absolute -top-0.5 -right-0.5 w-2 h-2 border-t border-r border-white/30"></div>
+        <div class="absolute -bottom-0.5 -left-0.5 w-2 h-2 border-b border-l border-white/30"></div>
+      </div>
+      <span class="font-mono font-bold tracking-[0.2em] text-sm">SONICSENTINEL<span class="text-white/30">.AI</span></span>
+    </a>
+
+    <div class="relative z-10">
+      <div class="font-mono text-[10px] text-white/20 tracking-[0.2em] mb-6 uppercase">Live System Status</div>
+      <div class="space-y-3">
+        {% set feeds = [
+          ('Acoustic Pipeline',    'ONLINE'),
+          ('Dual Model Inference', 'ONLINE'),
+          ('Alert Dispatch',       'ONLINE'),
+          ('MongoDB Storage',      'ONLINE'),
+          ('Live Mic Feed',        'STANDBY'),
+        ] %}
+        {% for label, status in feeds %}
+        <div class="flex items-center justify-between border border-white/6 px-4 py-2.5">
+          <span class="font-mono text-xs text-white/40">{{ label }}</span>
+          <div class="flex items-center gap-2">
+            <div class="w-1.5 h-1.5 rounded-full {{ 'bg-white animate-pulse' if status == 'ONLINE' else 'bg-white/30' }}"></div>
+            <span class="font-mono text-[10px] tracking-widest {{ 'text-white/50' if status == 'ONLINE' else 'text-white/20' }}">{{ status }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="relative z-10 font-mono text-[10px] text-white/15 tracking-widest">SONICSENTINEL.AI © 2090</div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="flex-1 flex flex-col justify-center items-center px-8 py-16">
+    <div class="w-full max-w-sm">
+      <div class="mb-10">
+        <div class="font-mono text-[10px] text-white/25 tracking-[0.2em] mb-4 uppercase">Authentication</div>
+        <h1 class="text-4xl font-black tracking-tighter mb-2">
+          Access<br/>
+          <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">Control</span>
+        </h1>
+        <p class="font-mono text-xs text-white/30">Enter your credentials to access the command center.</p>
+      </div>
+
+      {% if error %}
+      <div class="flex items-start gap-3 border border-red-500/30 bg-red-500/5 px-4 py-3 mb-5">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mt-0.5 shrink-0"></i>
+        <p class="font-mono text-xs text-red-400 leading-relaxed">{{ error }}</p>
+      </div>
+      {% endif %}
+
+      <form class="space-y-4" method="POST" action="/login">
+        <div>
+          <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+            <input type="email" name="email" required placeholder="operator@sonicsentinel.ai"
+              class="w-full bg-transparent border border-white/10 pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between mb-2">
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] uppercase">Password</label>
+            <button type="button" class="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest transition-colors">Forgot?</button>
+          </div>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+            <input type="password" name="password" id="password-field" required placeholder="••••••••••••"
+              class="w-full bg-transparent border border-white/10 pl-10 pr-10 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+            <button type="button" onclick="togglePass()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors">
+              <i data-lucide="eye" id="eye-icon" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-btn"
+          class="group w-full flex items-center justify-center gap-2.5 bg-white text-black py-3.5 font-mono text-xs tracking-widest uppercase font-bold hover:bg-white/90 transition-all duration-300 mt-2">
+          <span>Authenticate</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5"></i>
+        </button>
+      </form>
+
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center"><div class="w-full h-px bg-white/8"></div></div>
+        <div class="relative flex justify-center"><span class="bg-black px-3 font-mono text-[10px] text-white/20">or</span></div>
+      </div>
+
+      <p class="text-center font-mono text-xs text-white/25 mt-4">
+        No credentials? <a href="/register" class="text-white hover:text-white/70 underline underline-offset-2 transition-colors">Request registration</a>
+      </p>
+      <p class="text-center font-mono text-xs text-white/15 mt-2">
+        <a href="/" class="hover:text-white/30 transition-colors">← Return to home</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let passVisible = false;
+function togglePass() {
+  passVisible = !passVisible;
+  const field = document.getElementById('password-field');
+  const icon  = document.getElementById('eye-icon');
+  field.type = passVisible ? 'text' : 'password';
+  icon.setAttribute('data-lucide', passVisible ? 'eye-off' : 'eye');
+  if (window.lucide) lucide.createIcons();
+}
+
+document.querySelector('form').addEventListener('submit', function() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="w-3.5 h-3.5 spinner mr-2"></div><span>Authenticating…</span>';
+});
+</script>
+{% endblock %}

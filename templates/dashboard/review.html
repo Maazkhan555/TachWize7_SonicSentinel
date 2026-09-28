@@ -1,0 +1,194 @@
+{% extends "dashboard/layout.html" %}
+{% block title %}Review Queue — SonicSentinel AI{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full gap-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="section-header mb-2">Uncertain and conflicting detections</div>
+      <h1 class="text-2xl font-bold tracking-tight">Manual Review Queue</h1>
+    </div>
+  </div>
+
+  <div class="flex gap-6 flex-1 min-h-0">
+    <div class="w-1/3 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+      <div class="p-4 border-b border-[#1f1f1f] font-medium text-white/50 text-sm uppercase tracking-wider" id="queue-header">
+        Pending Reviews (0)
+      </div>
+      <div class="flex-1 overflow-y-auto" id="queue-list">
+        <!-- Queue items injected here -->
+      </div>
+    </div>
+
+    <div id="review-detail" class="w-2/3 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-6 flex items-center justify-center text-white/50">
+      <div class="text-center font-mono text-xs">Select a detection to review</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let queueData = [];
+let selectedId = null;
+
+function needsReview(event) {
+  const legacyUncertain = event.normalized_label === 'UNKNOWN'
+    || event.fusion?.normalized === 'UNKNOWN'
+    || event.fusion?.agreement === 'split'
+    || Number(event.confidence || 0) < 0.40;
+  return event.review_status === 'pending'
+    || (event.review_status !== 'reviewed' && (event.requires_review || legacyUncertain));
+}
+
+function renderQueue() {
+  document.getElementById('queue-header').textContent = `Pending Reviews (${queueData.length})`;
+  const list = document.getElementById('queue-list');
+  list.replaceChildren();
+  if (!queueData.length) {
+    list.textContent = 'No detections need review.';
+    list.className = 'flex-1 overflow-y-auto p-5 text-sm text-white/50';
+    return;
+  }
+  list.className = 'flex-1 overflow-y-auto';
+  queueData.forEach((item) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `w-full text-left p-4 border-b border-[#1f1f1f] transition-colors ${selectedId === item.audioId ? 'bg-white/10 border-l-2 border-l-amber-300' : 'hover:bg-white/5'}`;
+    const label = document.createElement('span');
+    label.className = 'block font-bold mb-1';
+    label.textContent = item.label || 'Unknown sound';
+    const metadata = document.createElement('span');
+    metadata.className = 'block text-xs text-white/50 font-mono';
+    metadata.textContent = `${item.audioId || '—'} · ${item.fusion?.agreement_str || item.decision_status || 'UNCERTAIN'}`;
+    button.append(label, metadata);
+    button.addEventListener('click', () => selectItem(item.audioId));
+    list.append(button);
+  });
+}
+
+function selectItem(id) {
+  selectedId = id;
+  renderQueue();
+  const item = queueData.find(x => x.audioId === id);
+  if (!item) return;
+  
+  const detail = document.getElementById('review-detail');
+  detail.className = 'w-2/3 bg-[#0a0a0a] border border-[#1f1f1f] p-6 flex flex-col overflow-y-auto';
+  detail.replaceChildren();
+  const title = document.createElement('h2');
+  title.className = 'text-xl font-bold mb-1';
+  title.textContent = item.label || 'Unknown sound';
+  const subtitle = document.createElement('p');
+  subtitle.className = 'text-xs text-white/50 font-mono mb-5';
+  subtitle.textContent = `${item.audioId} · ${item.timestamp ? new Date(item.timestamp).toLocaleString() : '—'} · ${item.fusion?.agreement_str || 'UNCERTAIN'}`;
+  const preview = document.createElement('div');
+  preview.className = 'border border-amber-400/30 bg-amber-400/5 p-3 mb-5 text-xs text-amber-200';
+  preview.textContent = 'Source audio is not retained by this installation, so playback is unavailable. Review the captured metadata and model evidence below.';
+  const featureGrid = document.createElement('div');
+  featureGrid.className = 'grid grid-cols-2 gap-3 mb-5';
+  const features = item.audio_features || {};
+  [['Confidence', `${(Number(item.confidence || 0) * 100).toFixed(1)}%`], ['Audio quality', `${item.audio_quality?.label || 'Not assessed'}${item.audio_quality?.issues?.length ? ` · ${item.audio_quality.issues.join(', ')}` : ''}`], ['Signal level', `RMS ${features.rms ?? '—'} · Peak ${features.peak ?? '—'}`], ['Signal behavior', item.energy_label || '—'], ['Scene', item.scene_analysis?.primary_sound || item.primary_sound || '—']].forEach(([key, value]) => {
+    const box = document.createElement('div');
+    box.className = 'border border-[#1f1f1f] p-3';
+    const keyEl = document.createElement('div');
+    keyEl.className = 'text-xs text-white/50 uppercase mb-2';
+    keyEl.textContent = key;
+    const valueEl = document.createElement('div');
+    valueEl.className = 'font-mono text-sm';
+    valueEl.textContent = value;
+    box.append(keyEl, valueEl);
+    featureGrid.append(box);
+  });
+  const evidenceTitle = document.createElement('h3');
+  evidenceTitle.className = 'text-xs text-white/50 uppercase tracking-wider mb-2';
+  evidenceTitle.textContent = 'Model evidence';
+  const evidence = document.createElement('div');
+  evidence.className = 'border border-[#1f1f1f] p-3 mb-5 space-y-2 text-sm';
+  Object.values(item.models || {}).forEach((model) => {
+    const line = document.createElement('div');
+    line.className = 'flex justify-between gap-4';
+    const modelName = document.createElement('span');
+    modelName.className = 'text-white/50';
+    modelName.textContent = model.model_name || model.model_id || 'Model';
+    const prediction = document.createElement('span');
+    prediction.className = 'font-mono text-right';
+    prediction.textContent = model.status === 'ready'
+      ? `${model.prediction || '—'} · ${(Number(model.confidence || 0) * 100).toFixed(1)}%`
+      : `OFFLINE · ${model.error || 'No result'}`;
+    line.append(modelName, prediction);
+    evidence.append(line);
+  });
+  const evidenceSummary = document.createElement('p');
+  evidenceSummary.className = 'text-xs text-white/50 mb-5';
+  evidenceSummary.textContent = item.audio_summary || item.scene_analysis?.summary || '';
+  const decision = document.createElement('select');
+  decision.id = 'review-decision';
+  decision.className = 'w-full bg-black border border-[#1f1f1f] p-3 mb-3';
+  [['confirmed','Confirm detection'],['false_positive','False positive'],['corrected','Correct class']].forEach(([value, label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; decision.append(option);
+  });
+  const correctedLabel = document.createElement('input');
+  correctedLabel.id = 'review-corrected-label';
+  correctedLabel.className = 'hidden w-full bg-black border border-[#1f1f1f] p-3 mb-3';
+  correctedLabel.placeholder = 'Correct sound label';
+  decision.addEventListener('change', () => correctedLabel.classList.toggle('hidden', decision.value !== 'corrected'));
+  const comments = document.createElement('textarea');
+  comments.id = 'review-comments';
+  comments.className = 'w-full bg-black border border-[#1f1f1f] p-3 text-sm mb-3';
+  comments.placeholder = 'Review notes';
+  comments.rows = 3;
+  const submit = document.createElement('button');
+  submit.className = 'btn-primary self-end';
+  submit.textContent = 'SAVE REVIEW';
+  submit.addEventListener('click', submitReview);
+  const message = document.createElement('p');
+  message.id = 'review-message';
+  message.className = 'text-xs text-white/50';
+  detail.append(title, subtitle, preview, featureGrid, evidenceTitle, evidence, evidenceSummary, decision, correctedLabel, comments, message, submit);
+}
+
+async function submitReview() {
+  const item = queueData.find((event) => event.audioId === selectedId);
+  const message = document.getElementById('review-message');
+  if (!item) return;
+  const decision = document.getElementById('review-decision').value;
+  const correctedLabel = document.getElementById('review-corrected-label').value.trim();
+  if (decision === 'corrected' && !correctedLabel) {
+    message.textContent = 'Enter the corrected class before saving.';
+    return;
+  }
+  try {
+    const response = await fetch(`/api/events/${encodeURIComponent(selectedId)}/review`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({decision, corrected_label: correctedLabel, comments: document.getElementById('review-comments').value}),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || 'Could not save review');
+    await loadReviewQueue();
+  } catch (error) {
+    message.textContent = error.message;
+  }
+}
+
+async function loadReviewQueue() {
+  try {
+    const response = await fetch('/api/history?limit=200');
+    if (!response.ok) throw new Error(`Review request failed (${response.status})`);
+    const events = await response.json();
+    queueData = events.filter(needsReview);
+    renderQueue();
+    if (queueData.length) selectItem(selectedId && queueData.some((event) => event.audioId === selectedId) ? selectedId : queueData[0].audioId);
+    else {
+      selectedId = null;
+      const detail = document.getElementById('review-detail');
+      detail.className = 'w-2/3 bg-[#0a0a0a] border border-[#1f1f1f] p-6 flex items-center justify-center text-white/50';
+      detail.textContent = 'No detections are waiting for review.';
+    }
+  } catch (error) {
+    document.getElementById('queue-header').textContent = error.message;
+  }
+}
+loadReviewQueue();
+</script>
+{% endblock %}

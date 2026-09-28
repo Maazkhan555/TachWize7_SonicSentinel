@@ -1,0 +1,432 @@
+{% extends "dashboard/layout.html" %}
+{% block title %}Upload & Analyze — SonicSentinel AI{% endblock %}
+
+{% block content %}
+<div class="analysis-page" style="display:flex;flex-direction:column;gap:20px">
+
+  <!-- Header -->
+  <div>
+    <div class="section-header" style="margin-bottom:6px">Forensic Audio Analysis</div>
+    <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0">Upload &amp; Analyze</h1>
+  </div>
+
+  <!-- Drop zone -->
+  <div id="drop-zone" class="drop-zone" style="padding:48px 24px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center"
+    ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)"
+    onclick="document.getElementById('file-upload').click()">
+    <input id="file-upload" type="file" style="display:none" accept=".wav,.mp3,.flac,.ogg,.m4a,.aac,.webm,.opus"
+      onchange="handleFile(this.files[0])">
+
+    <div id="drop-idle">
+      <i data-lucide="upload-cloud" style="width:40px;height:40px;color:var(--muted);margin-bottom:16px"></i>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px">Drop Audio File Here</div>
+      <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);letter-spacing:0.1em">WAV · MP3 · FLAC · OGG · M4A · AAC</div>
+      <div style="margin-top:16px">
+        <span class="btn-primary" style="display:inline-flex;cursor:pointer">
+          <i data-lucide="folder-open" style="width:14px;height:14px"></i> Browse Files
+        </span>
+      </div>
+    </div>
+
+    <div id="drop-processing" style="display:none;flex-direction:column;align-items:center">
+      <div class="spinner" style="width:40px;height:40px;margin-bottom:16px"></div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Analyzing Audio…</div>
+      <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);letter-spacing:0.1em">Running SonicSentinel CNN inference</div>
+    </div>
+  </div>
+
+  <!-- Error message -->
+  <div id="error-msg" style="display:none;padding:14px 20px;border-left:3px solid var(--danger);background:var(--danger-dim);border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;color:var(--danger)"></div>
+
+  <!-- Results -->
+  <div id="result-section" style="display:none;flex-direction:column;gap:16px">
+
+    <!-- File summary bar -->
+    <div class="glass-card file-summary" style="padding:20px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--glow-accent)">
+          <i data-lucide="file-audio" style="width:20px;height:20px;color:var(--accent)"></i>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px" id="res-filename">—</div>
+          <div style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:12px">
+            <span>ID: <span id="res-id">—</span></span>
+            <span><span id="res-duration">—</span>s</span>
+            <span><span id="res-samplerate">—</span> Hz</span>
+            <span id="res-format">—</span>
+            <span id="res-filesize">—</span>
+            <span id="res-window-summary">—</span>
+            <span id="res-timestamp">—</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:4px">DETECTED CLASS</div>
+        <div style="font-family:ui-monospace,monospace;font-size:20px;font-weight:900;color:var(--accent)" id="res-label">—</div>
+        <div id="res-review-status" class="mt-2 text-xs font-mono uppercase tracking-wider">—</div>
+      </div>
+    </div>
+
+    <div id="res-window-panel" class="glass-card" style="display:none;padding:18px">
+      <div class="section-header" style="margin-bottom:12px">Window-by-Window Detections</div>
+      <div id="res-window-results" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"></div>
+    </div>
+
+    <!-- Main results grid -->
+    <div class="analysis-result-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+
+      <!-- Confidence card -->
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:14px">Confidence</div>
+        <div style="font-family:ui-monospace,monospace;font-size:48px;font-weight:900;color:var(--accent);line-height:1" id="res-confidence">—</div>
+        <div style="margin-top:12px;font-family:ui-monospace,monospace;font-size:11px;color:var(--muted)" id="res-energy-label">—</div>
+        <div style="margin-top:8px">
+          <div class="conf-bar" style="height:6px">
+            <div class="conf-bar-fill" id="res-conf-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inference info -->
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:14px">Inference</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">DEVICE</span>
+            <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--accent)" id="res-device">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">LATENCY</span>
+            <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--text)" id="res-latency">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">ALERT</span>
+            <span style="font-family:ui-monospace,monospace;font-size:11px" id="res-alert">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">STATE</span>
+            <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--accent)" id="res-state">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">AUDIO QUALITY</span>
+            <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--text)" id="res-quality">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal features -->
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:14px">Signal Features</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          {% for label, id in [('RMS','res-rms'),('Peak','res-peak'),('Spectral Ctr','res-sc'),('Dom. Freq','res-df'),('Zero-Cross','res-zcr'),('Silence','res-sil')] %}
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">{{ label }}</span>
+            <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--text)" id="{{ id }}">—</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Model comparison panel -->
+    <div class="glass-card" style="padding:20px;border-radius:6px">
+      <div class="section-header" style="margin-bottom:14px">Model Comparison</div>
+      <div class="analysis-model-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border:1px solid var(--border);border-radius:4px;padding:14px">
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);letter-spacing:0.12em;margin-bottom:8px">SONICSENTINEL CNN</div>
+          <div style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="a-ss-label" title="">—</div>
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);margin-bottom:6px" id="a-ss-norm">—</div>
+          <div style="font-family:ui-monospace,monospace;font-size:13px;font-weight:900;color:var(--accent)" id="a-ss-conf">—</div>
+          <div style="margin-top:6px"><div class="conf-bar"><div class="conf-bar-fill" id="a-ss-bar" style="width:0%"></div></div></div>
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);margin-top:4px" id="a-ss-ms">—</div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:4px;padding:14px">
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);letter-spacing:0.12em;margin-bottom:8px">AST (AudioSet-527)</div>
+          <div style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="a-ast-label" title="">—</div>
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);margin-bottom:6px" id="a-ast-norm">—</div>
+          <div style="font-family:ui-monospace,monospace;font-size:13px;font-weight:900;color:var(--accent)" id="a-ast-conf">—</div>
+          <div style="margin-top:6px"><div class="conf-bar"><div class="conf-bar-fill" id="a-ast-bar" style="width:0%"></div></div></div>
+          <div style="font-family:ui-monospace,monospace;font-size:9px;color:var(--muted);margin-top:4px" id="a-ast-ms">—</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em">AGREEMENT</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--accent)" id="a-agreement">—</span>
+        </div>
+        <div style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)" id="a-evidence"></div>
+      </div>
+    </div>
+
+    <!-- Top predictions + waveform -->
+    <div class="analysis-wave-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:12px">Audio Preview</div>
+        <audio id="upload-audio-preview" controls preload="metadata" style="width:100%"></audio>
+        <div id="res-recommendation" class="mt-3 text-xs text-white/50"></div>
+      </div>
+
+      <!-- Top predictions -->
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:14px">Top Predictions</div>
+        <div id="res-top-preds" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- Waveform -->
+      <div class="glass-card" style="padding:20px;border-radius:6px">
+        <div class="section-header" style="margin-bottom:12px">Waveform</div>
+        <div style="height:120px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:4px;overflow:hidden">
+          <canvas id="upload-waveform-canvas" style="width:100%;height:100%"></canvas>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between">
+          <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)">0:00</span>
+          <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted)" id="res-dur-label">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  onDragLeave();
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+}
+
+let activePreviewUrl = null;
+
+function formatFileSize(size) {
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const allowed = ['wav','mp3','flac','ogg','m4a','aac','webm','opus'];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!allowed.includes(ext)) {
+    showError('Unsupported format: .' + ext + '. Allowed: ' + allowed.join(', '));
+    return;
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    showError('File exceeds the 50 MB upload limit.');
+    return;
+  }
+
+  document.getElementById('drop-idle').style.display       = 'none';
+  document.getElementById('drop-processing').style.display = 'flex';
+  document.getElementById('result-section').style.display  = 'none';
+  document.getElementById('error-msg').style.display       = 'none';
+
+  const formData = new FormData();
+  formData.append('audio', file);
+
+  try {
+    const resp = await fetch('/api/analyze', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.success) {
+      showResult(data, file);
+      window.setDashboardState(data.dashboard_state, data.inference_ms);
+    } else {
+      showError(data.error || 'Analysis failed.');
+    }
+  } catch(e) {
+    showError('Network error: ' + e.message);
+  } finally {
+    document.getElementById('drop-processing').style.display = 'none';
+    document.getElementById('drop-idle').style.display       = 'flex';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function showResult(d, file) {
+  const af = d.audio_features || {};
+  const ts = new Date(d.timestamp).toLocaleTimeString('en-US', {hour12:false});
+
+  document.getElementById('res-filename').textContent  = d.filename || file.name;
+  document.getElementById('res-id').textContent        = d.audioId || '—';
+  const sourceDuration = d.source_duration_sec ?? af.duration_sec;
+  document.getElementById('res-duration').textContent  = sourceDuration !== undefined ? Number(sourceDuration).toFixed(1) : '—';
+  document.getElementById('res-samplerate').textContent= af.sample_rate || '—';
+  document.getElementById('res-timestamp').textContent = ts;
+  document.getElementById('res-format').textContent = (file.name.split('.').pop() || 'audio').toUpperCase();
+  document.getElementById('res-filesize').textContent = formatFileSize(file.size);
+  const windowCount = Number(d.analysis_windows || 1);
+  const windowStart = Number(d.selected_window_start_sec || 0).toFixed(1);
+  document.getElementById('res-window-summary').textContent = windowCount > 1
+    ? `${windowCount} windows · selected ${windowStart}s`
+    : '1 analysis window';
+  document.getElementById('res-label').textContent     = d.label || '—';
+  const reviewStatus = document.getElementById('res-review-status');
+  reviewStatus.textContent = d.requires_review ? 'MANUAL REVIEW REQUIRED' : 'CLASSIFIED';
+  reviewStatus.style.color = d.requires_review ? 'var(--warning)' : 'var(--success)';
+  document.getElementById('res-recommendation').textContent = d.recommended_action || d.scene_analysis?.summary || 'No additional action.';
+  const windows = d.window_predictions || [];
+  const windowPanel = document.getElementById('res-window-panel');
+  const windowResults = document.getElementById('res-window-results');
+  windowResults.replaceChildren();
+  windowPanel.style.display = windows.length > 1 ? 'block' : 'none';
+  windows.forEach((windowResult) => {
+    const card = document.createElement('div');
+    card.className = 'border border-[#1f1f1f] p-3';
+    const time = document.createElement('div');
+    time.className = 'text-[10px] text-white/50 font-mono';
+    time.textContent = `${Number(windowResult.start_sec || 0).toFixed(1)}s`;
+    const label = document.createElement('div');
+    label.className = 'mt-2 text-sm font-bold break-words';
+    label.textContent = windowResult.label || 'Unknown sound';
+    const confidence = document.createElement('div');
+    confidence.className = 'mt-1 text-xs font-mono text-white/60';
+    confidence.textContent = `${(Number(windowResult.confidence || 0) * 100).toFixed(1)}% · ${windowResult.normalized || 'UNKNOWN'}`;
+    card.append(time, label, confidence);
+    windowResults.append(card);
+  });
+  if (activePreviewUrl) URL.revokeObjectURL(activePreviewUrl);
+  activePreviewUrl = URL.createObjectURL(file);
+  const preview = document.getElementById('upload-audio-preview');
+  preview.src = activePreviewUrl;
+
+  const confPct = d.confidence ? (d.confidence * 100).toFixed(1) : '0';
+  document.getElementById('res-confidence').textContent = confPct + '%';
+  document.getElementById('res-conf-bar').style.width   = confPct + '%';
+  document.getElementById('res-energy-label').textContent = d.energy_label || '—';
+
+  document.getElementById('res-device').textContent  = (d.device || '—').toUpperCase();
+  document.getElementById('res-latency').textContent = d.inference_ms ? d.inference_ms + ' ms' : '—';
+  document.getElementById('res-alert').textContent   = d.is_alert ? 'YES' : 'NO';
+  document.getElementById('res-alert').style.color   = d.is_alert ? 'var(--danger)' : 'var(--success)';
+  document.getElementById('res-state').textContent   = d.dashboard_state || '—';
+  const quality = d.audio_quality || {};
+  const qualityEl = document.getElementById('res-quality');
+  qualityEl.textContent = quality.label || 'Not assessed';
+  qualityEl.title = (quality.issues || []).join(', ');
+  qualityEl.style.color = quality.label === 'Good' ? 'var(--success)' : (quality.label === 'Poor' || quality.label === 'Unusable' ? 'var(--danger)' : 'var(--warning)');
+
+  document.getElementById('res-rms').textContent  = af.rms  !== undefined ? af.rms.toFixed(4)  : '—';
+  document.getElementById('res-peak').textContent = af.peak !== undefined ? af.peak.toFixed(4) : '—';
+  document.getElementById('res-sc').textContent   = af.spectral_centroid ? af.spectral_centroid.toFixed(0) + ' Hz' : '—';
+  document.getElementById('res-df').textContent   = af.dominant_freq     ? af.dominant_freq.toFixed(0) + ' Hz'     : '—';
+  document.getElementById('res-zcr').textContent  = af.zcr !== undefined ? af.zcr.toFixed(4) : '—';
+  document.getElementById('res-sil').textContent  = af.silence_pct !== undefined ? af.silence_pct.toFixed(1) + '%' : '—';
+  document.getElementById('res-dur-label').textContent = af.duration_sec !== undefined ? af.duration_sec.toFixed(1) + 's' : '—';
+
+  // Top predictions
+  const preds = d.top_predictions || [];
+  document.getElementById('res-top-preds').innerHTML = preds.slice(0,5).map((p, i) => `
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--muted);width:14px">${i+1}</span>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:${i===0?'var(--accent)':'var(--text)'}">${p.label}</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted)">${(p.confidence*100).toFixed(1)}%</span>
+        </div>
+        <div class="conf-bar"><div class="conf-bar-fill" style="width:${(p.confidence*100).toFixed(1)}%;${i===0?'background:var(--accent)':'background:var(--muted)'}"></div></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Model comparison panel
+  const models = d.models || {};
+  const fusion = d.fusion || {};
+  [
+    ['sonicsentinel', 'a-ss-label',  'a-ss-norm',  'a-ss-conf',  'a-ss-bar',  'a-ss-ms'],
+    ['ast',           'a-ast-label', 'a-ast-norm', 'a-ast-conf', 'a-ast-bar', 'a-ast-ms'],
+  ].forEach(([key, lId, nId, cId, bId, mId]) => {
+    const m      = models[key] || {};
+    const online = m.status === 'ready';
+    const lbl    = online ? m.prediction : (m.error ? 'OFFLINE' : '—');
+    const norm   = online ? (m.normalized_prediction || '—') : '—';
+    const pct    = online && m.confidence != null ? (m.confidence * 100).toFixed(1) : null;
+    const el     = document.getElementById(lId);
+    el.textContent = lbl; el.title = online ? m.prediction : (m.error || '');
+    el.style.color = online ? 'var(--text)' : 'var(--muted)';
+    document.getElementById(nId).textContent = norm !== '—' ? '→ ' + norm : '—';
+    document.getElementById(cId).textContent = pct ? pct + '%' : (online ? '0%' : '—');
+    document.getElementById(cId).style.color = online ? 'var(--accent)' : 'var(--muted)';
+    document.getElementById(bId).style.width = pct ? pct + '%' : '0%';
+    document.getElementById(mId).textContent = online && m.latency_ms != null
+      ? m.latency_ms + ' ms' : (m.error ? m.error.substring(0, 30) : '—');
+    document.getElementById(mId).style.color = online ? 'var(--muted)' : 'var(--danger)';
+  });
+  const agrStr = fusion.agreement_str || (fusion.agreement || '—').toUpperCase();
+  const agrEl  = document.getElementById('a-agreement');
+  agrEl.textContent = agrStr;
+  const agr = (fusion.agreement || '').toLowerCase();
+  agrEl.style.color = agr === 'full' ? 'var(--success)'
+    : agr === 'single' ? 'var(--muted)'
+    : 'var(--danger)';
+  const evEl = document.getElementById('a-evidence');
+  const evidence = fusion.evidence || [];
+  if (evEl && evidence.length) {
+    evEl.innerHTML = evidence.map(e =>
+      `${e.model}: <span style="color:var(--text)">${e.raw}</span> → <span style="color:var(--accent)">${e.normalized}</span> (${(e.confidence*100).toFixed(1)}%)`
+    ).join('<br>');
+  }
+
+  // Draw waveform from file
+  drawUploadWaveform(file);
+
+  document.getElementById('result-section').style.display = 'flex';
+  if (window.lucide) lucide.createIcons();
+}
+
+function drawUploadWaveform(file) {
+  const canvas = document.getElementById('upload-waveform-canvas');
+  const ctx    = canvas.getContext('2d');
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf      = await audioCtx.decodeAudioData(e.target.result);
+      const data     = buf.getChannelData(0);
+      canvas.width   = canvas.offsetWidth;
+      canvas.height  = canvas.offsetHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const step    = Math.ceil(data.length / canvas.width);
+      const accent  = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#00e5c8';
+      ctx.strokeStyle = accent;
+      ctx.lineWidth   = 1;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur  = 3;
+      ctx.beginPath();
+      for (let i = 0; i < canvas.width; i++) {
+        let min = 1, max = -1;
+        for (let j = 0; j < step; j++) {
+          const v = data[i * step + j] || 0;
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        const yMin = ((1 + min) / 2) * canvas.height;
+        const yMax = ((1 + max) / 2) * canvas.height;
+        ctx.moveTo(i, yMin);
+        ctx.lineTo(i, yMax);
+      }
+      ctx.stroke();
+      audioCtx.close();
+    } catch(e) {
+      // Fallback: draw placeholder
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# ── PyTorch model checkpoints (too large for GitHub, stored separately) ────────
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# ── Whisper model cache ────────────────────────────────────────────────────────
+~/.cache/whisper/
+*.whisper
+
+# ── HuggingFace cache ──────────────────────────────────────────────────────────
+~/.cache/huggingface/
+
+# ── Torch hub cache ───────────────────────────────────────────────────────────
+~/.cache/torch/
+
+# ── Large dataset files ────────────────────────────────────────────────────────
+SonicSentinel_Persistent 0.1/datasets/downloads/
+SonicSentinel_Persistent 0.1/datasets/raw/
+SonicSentinel_Persistent 0.1/datasets/collected/
+SonicSentinel_Persistent 0.1/datasets/manifests/*.csv
+SonicSentinel_Persistent 0.1/checkpoints/
+
+# ── Audio files ────────────────────────────────────────────────────────────────
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.webm
+*.opus
+tests/audio/*.wav
+tests/audio/*.mp3
+
+# ── Environment variables ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+*.env
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Data / session storage ─────────────────────────────────────────────────────
+data/event_history.json
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+0.20.0
+*.tmp
+*.bak
+
+# ── Local ML / deployment artifacts ───────────────────────────────────────────
+tm-my-audio-model/
+SonicSentinel_Persistent 0.1/datasets/
+SonicSentinel_Persistent 0.1/checkpoints/
+SonicSentinel_Persistent 0.1/models/
+
+# Local generated reports/history
+sonicsentinel_fast_history.csv
+training_history.csv
+training_history (1).csv

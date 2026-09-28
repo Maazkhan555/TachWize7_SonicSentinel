@@ -1,0 +1,15 @@
+{
+  "project": "SonicSentinel",
+  "stage": "collection",
+  "valid_recordings": 42966,
+  "invalid_recordings": 0,
+  "source_counts": {
+    "FSD50K": 40966,
+    "ESC-50": 2000
+  },
+  "training_gate": 20000,
+  "training_gate_reached": true,
+  "audio_storage": "Colab temporary disk; Drive quota is insufficient for full raw audio",
+  "manifest_path": "/content/drive/MyDrive/SonicSentinel_Persistent/datasets/manifests/validated_audio_manifest.csv",
+  "updated_utc": "2026-09-27T16:51:14Z"
+}

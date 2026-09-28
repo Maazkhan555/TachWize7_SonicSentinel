@@ -1,0 +1,111 @@
+{% extends "dashboard/layout.html" %}
+{% block title %}Event History — SonicSentinel AI{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full gap-6">
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <div class="section-header mb-2">Recorded detections</div>
+      <h1 class="text-2xl font-bold tracking-tight">Event History</h1>
+    </div>
+    <a href="/api/events/export.csv" class="btn-primary"><i data-lucide="download" style="width:14px;height:14px"></i> EXPORT CSV</a>
+  </div>
+
+  <div class="flex gap-3 flex-wrap items-center">
+    <input id="history-search" type="search" placeholder="Search ID, filename, or sound" class="bg-black border border-[#1f1f1f] px-3 py-2 text-sm min-w-[240px]">
+    <select id="history-filter" class="bg-black border border-[#1f1f1f] px-3 py-2 text-sm">
+      <option value="all">All events</option>
+      <option value="alerts">Alerts</option>
+      <option value="review">Needs review</option>
+      <option value="quality">Poor quality</option>
+      <option value="background">Background</option>
+    </select>
+    <span id="history-count" class="text-xs text-white/50 font-mono"></span>
+  </div>
+
+  <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead class="text-xs text-white/50 uppercase bg-black/50 border-b border-[#1f1f1f]">
+          <tr>
+            <th class="px-6 py-4">Audio ID</th>
+            <th class="px-6 py-4">Timestamp</th>
+            <th class="px-6 py-4">Source / File</th>
+            <th class="px-6 py-4">Detected sound</th>
+            <th class="px-6 py-4">Confidence</th>
+            <th class="px-6 py-4">Model state</th>
+            <th class="px-6 py-4">Review</th>
+            <th class="px-6 py-4">Severity</th>
+            <th class="px-6 py-4">Audio quality</th>
+          </tr>
+        </thead>
+        <tbody id="history-body" class="divide-y divide-[#1f1f1f]">
+        </tbody>
+      </table>
+    </div>
+    <div id="history-empty" class="hidden p-10 text-center text-white/50 font-mono text-xs">NO EVENTS MATCH THIS FILTER</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let historyEvents = [];
+async function loadHistory() {
+  const status = document.getElementById('history-count');
+  try {
+    const response = await fetch('/api/history?limit=200');
+    if (!response.ok) throw new Error(`History request failed (${response.status})`);
+    historyEvents = await response.json();
+    renderHistory();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+function renderHistory() {
+  const query = document.getElementById('history-search').value.trim().toLowerCase();
+  const filter = document.getElementById('history-filter').value;
+  const events = historyEvents.filter((event) => {
+    const searchable = [event.audioId, event.filename, event.label, event.primary_sound, event.source].join(' ').toLowerCase();
+    if (query && !searchable.includes(query)) return false;
+    if (filter === 'alerts' && !event.is_alert) return false;
+    if (filter === 'review' && event.review_status !== 'pending'
+      && !(event.review_status !== 'reviewed' && (event.requires_review || event.fusion?.agreement === 'split' || event.fusion?.normalized === 'UNKNOWN' || Number(event.confidence || 0) < 0.40))) return false;
+    if (filter === 'quality' && !['Poor', 'Unusable'].includes(event.audio_quality?.label)) return false;
+    if (filter === 'background' && !event.background_noise) return false;
+    return true;
+  });
+  const body = document.getElementById('history-body');
+  body.replaceChildren();
+  document.getElementById('history-count').textContent = `${events.length} / ${historyEvents.length} EVENTS`;
+  document.getElementById('history-empty').classList.toggle('hidden', events.length > 0);
+  events.forEach((event) => {
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-white/5';
+    const values = [
+      event.audioId || '—',
+      event.timestamp ? new Date(event.timestamp).toLocaleString() : '—',
+      `${event.source || '—'} · ${event.filename || '—'}`,
+      event.label || 'Unknown sound',
+      `${(Number(event.confidence || 0) * 100).toFixed(1)}%`,
+      event.fusion?.agreement_str || '—',
+      event.review_status === 'pending' || event.requires_review ? 'MANUAL REVIEW' : 'CLASSIFIED',
+      event.severity || '—',
+      event.audio_quality?.label || 'Not assessed',
+    ];
+    values.forEach((value, index) => {
+      const cell = document.createElement('td');
+      cell.className = `px-6 py-4 ${index === 0 || index === 1 || index === 4 ? 'font-mono text-white/70' : ''}`;
+      cell.textContent = value;
+      row.append(cell);
+    });
+    body.append(row);
+  });
+}
+
+document.getElementById('history-search').addEventListener('input', renderHistory);
+document.getElementById('history-filter').addEventListener('change', renderHistory);
+loadHistory();
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SonicSentinel AI — AcousticX Intelligence{% endblock %}</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['ui-monospace','SFMono-Regular','Menlo','Monaco','Consolas','Liberation Mono','Courier New','monospace'],
+          },
+          colors: {
+            background:  '#000000',
+            foreground:  '#ffffff',
+            card:        '#0a0a0a',
+            primary:     '#ffffff',
+            secondary:   '#111111',
+            border:      '#1f1f1f',
+            critical:    '#ff3333',
+            high:        '#ff8800',
+            medium:      '#ffcc00',
+            low:         '#cccccc',
+            info:        '#888888',
+            muted:       '#0d0d0d',
+          },
+          animation: {
+            'pulse-slow': 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}" />
+
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-black text-white antialiased min-h-screen">
+  <!-- Scan line effect -->
+  <div class="scan-line"></div>
+
+  {% block body %}{% endblock %}
+
+  <!-- Init Lucide icons -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

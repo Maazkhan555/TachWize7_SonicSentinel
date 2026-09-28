@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block title %}Register — SonicSentinel AI{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-black flex overflow-hidden">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex lg:w-5/12 flex-col justify-between p-14 border-r border-white/8 relative overflow-hidden shrink-0">
+    <div class="absolute inset-0 pointer-events-none" style="
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;"></div>
+    <div class="absolute inset-0" style="background:radial-gradient(ellipse 100% 80% at 50% 120%, rgba(255,255,255,0.04) 0%, transparent 70%)"></div>
+
+    <!-- Logo -->
+    <a href="/" class="relative z-10 flex items-center gap-3 group">
+      <div class="relative">
+        <div class="w-8 h-8 border border-white/25 flex items-center justify-center group-hover:bg-white/5 transition-all duration-300">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+        </div>
+        <div class="absolute -top-0.5 -right-0.5 w-2 h-2 border-t border-r border-white/30"></div>
+        <div class="absolute -bottom-0.5 -left-0.5 w-2 h-2 border-b border-l border-white/30"></div>
+      </div>
+      <span class="font-mono font-bold tracking-[0.2em] text-sm">SONICSENTINEL<span class="text-white/30">.AI</span></span>
+    </a>
+
+    <!-- Role preview panel -->
+    <div class="relative z-10 space-y-3" id="role-panel">
+      <div class="font-mono text-[10px] text-white/25 tracking-[0.2em] mb-5 uppercase">Available Roles</div>
+      {% set roles = [
+        ('SECURITY_OPERATOR','Security Operator',   'Monitor live feeds, manage alerts, acknowledge events'),
+        ('AUDIO_REVIEWER',   'Audio Reviewer',       'Review uncertain AI predictions, override decisions'),
+        ('ADMIN',            'System Administrator', 'Full access — users, rules, data retention, models'),
+        ('NORMAL_USER',      'Standard User',        'Upload and analyze audio files, view history'),
+      ] %}
+      {% for value, label, desc in roles %}
+      <div class="role-card px-4 py-3 border border-white/8 hover:border-white/20 transition-all duration-300" data-role="{{ value }}">
+        <div class="flex items-center gap-2 mb-0.5">
+          <i data-lucide="shield" class="w-3 h-3 text-white/25 role-icon"></i>
+          <span class="font-mono text-xs font-semibold text-white/40 role-label">{{ label }}</span>
+        </div>
+        <p class="font-mono text-[10px] leading-relaxed text-white/15 role-desc">{{ desc }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="relative z-10 font-mono text-[10px] text-white/15 tracking-widest">SONICSENTINEL.AI © 2090</div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="flex-1 flex flex-col justify-center items-center px-8 py-16 min-h-screen">
+    <div class="w-full max-w-md">
+
+      <!-- Step indicator -->
+      <div class="flex items-center gap-4 mb-10">
+        <div class="flex items-center gap-3">
+          <div id="step1-indicator" class="w-7 h-7 border flex items-center justify-center font-mono text-xs font-bold transition-all duration-300 border-white text-white">1</div>
+          <span id="step1-label" class="font-mono text-[10px] tracking-widest uppercase text-white">Identity</span>
+        </div>
+        <div id="step-line" class="w-10 h-px transition-all duration-500 bg-white/10"></div>
+        <div class="flex items-center gap-3">
+          <div id="step2-indicator" class="w-7 h-7 border flex items-center justify-center font-mono text-xs font-bold transition-all duration-300 border-white/20 text-white/30">2</div>
+          <span id="step2-label" class="font-mono text-[10px] tracking-widest uppercase text-white/30">Credentials</span>
+        </div>
+      </div>
+
+      <!-- Success screen (hidden by default) -->
+      <div id="success-screen" class="hidden text-center">
+        <div class="w-20 h-20 border border-white/20 flex items-center justify-center mx-auto mb-8 animate-pulse">
+          <i data-lucide="check-circle" class="w-8 h-8 text-white"></i>
+        </div>
+        <h2 class="text-3xl font-black tracking-tighter mb-3">Access Granted</h2>
+        <p class="font-mono text-xs text-white/30 tracking-widest">Redirecting to command center…</p>
+      </div>
+
+      <!-- Step 1 -->
+      <div id="step1-form">
+        <div class="mb-8">
+          <h1 class="text-4xl font-black tracking-tighter mb-2">
+            Request<br/><span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">Clearance</span>
+          </h1>
+          <p class="font-mono text-xs text-white/30 tracking-widest">Step 1 of 2 — Provide your identity and role</p>
+        </div>
+        <div class="space-y-4">
+          <!-- Name -->
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Full Name</label>
+            <div class="relative">
+              <i data-lucide="user" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+              <input type="text" id="name" placeholder="Your full name"
+                class="w-full bg-transparent border border-white/10 pl-10 pr-4 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+            </div>
+          </div>
+          <!-- Email -->
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Email Address</label>
+            <div class="relative">
+              <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+              <input type="email" id="email" placeholder="your@email.com"
+                class="w-full bg-transparent border border-white/10 pl-10 pr-10 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none transition-colors duration-200" />
+              <div id="email-icon-slot" class="absolute right-3.5 top-1/2 -translate-y-1/2"></div>
+            </div>
+            <div id="email-feedback" class="mt-1.5 min-h-[16px]"></div>
+          </div>
+          <!-- Role -->
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Role Designation</label>
+            <div class="relative">
+              <i data-lucide="shield" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none z-10"></i>
+              <select id="role"
+                class="w-full bg-black border border-white/10 pl-10 pr-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-white/35 transition-colors duration-200 appearance-none cursor-pointer">
+                <option value="">Select your role...</option>
+                <option value="SECURITY_OPERATOR">Security Operator</option>
+                <option value="AUDIO_REVIEWER">Audio Reviewer</option>
+                <option value="ADMIN">System Administrator</option>
+                <option value="NORMAL_USER">Standard User</option>
+              </select>
+              <i data-lucide="chevron-right" class="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none" style="transform:translateY(-50%) rotate(90deg)"></i>
+            </div>
+          </div>
+          <button type="button" id="step1-btn" onclick="goToStep2()"
+            class="group w-full flex items-center justify-center gap-2.5 bg-white text-black py-3.5 font-mono text-xs tracking-widest uppercase font-bold transition-all duration-300 opacity-25 cursor-not-allowed pt-2"
+            disabled>
+            <span>Continue</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="step2-form" class="hidden">
+        <div class="mb-8">
+          <h1 class="text-4xl font-black tracking-tighter mb-2">
+            Set<br/><span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">Credentials</span>
+          </h1>
+          <p class="font-mono text-xs text-white/30 tracking-widest">Step 2 of 2 — Secure your access credentials</p>
+        </div>
+        <div class="space-y-4">
+          <!-- Password -->
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Password</label>
+            <div class="relative">
+              <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+              <input type="password" id="password" oninput="checkStrength()" placeholder="Create a strong password"
+                class="w-full bg-transparent border border-white/10 pl-10 pr-10 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+              <button type="button" onclick="toggleField('password','eye-icon2')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors">
+                <i data-lucide="eye" id="eye-icon2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <!-- Password strength -->
+            <div id="strength-meter" class="mt-3 space-y-2 hidden">
+              <div class="flex gap-1">
+                <div id="bar-1" class="h-0.5 flex-1 transition-all duration-300 bg-white/10"></div>
+                <div id="bar-2" class="h-0.5 flex-1 transition-all duration-300 bg-white/10"></div>
+                <div id="bar-3" class="h-0.5 flex-1 transition-all duration-300 bg-white/10"></div>
+                <div id="bar-4" class="h-0.5 flex-1 transition-all duration-300 bg-white/10"></div>
+              </div>
+              <div id="strength-checks" class="flex gap-3 flex-wrap text-[10px] font-mono"></div>
+            </div>
+          </div>
+          <!-- Confirm -->
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Confirm Password</label>
+            <div class="relative">
+              <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none"></i>
+              <input type="password" id="confirm" oninput="checkConfirm()" placeholder="Repeat password"
+                class="w-full bg-transparent border border-white/10 pl-10 pr-10 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none transition-colors duration-200" />
+              <button type="button" onclick="toggleField('confirm','eye-icon3')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors">
+                <i data-lucide="eye" id="eye-icon3" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <div id="confirm-feedback" class="mt-1.5 min-h-[16px]"></div>
+          </div>
+          <!-- Legal -->
+          <div class="border border-white/8 p-4 bg-white/[0.015]">
+            <p class="font-mono text-[10px] text-white/25 leading-relaxed">
+              By registering, you confirm this system processes real-time acoustic data. All detections are logged. Access is monitored and subject to role restrictions. Unauthorized use is prohibited and may result in legal action.
+            </p>
+          </div>
+          <!-- Actions -->
+          <div class="flex gap-3 pt-2">
+            <button type="button" onclick="backToStep1()"
+              class="flex items-center gap-2 border border-white/12 px-5 py-3.5 font-mono text-xs text-white/40 hover:text-white hover:border-white/30 transition-all duration-200 uppercase tracking-widest">
+              <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back
+            </button>
+            <button type="button" id="step2-btn" onclick="submitRegister()"
+              class="group flex-1 flex items-center justify-center gap-2.5 bg-white text-black py-3.5 font-mono text-xs tracking-widest uppercase font-bold transition-all duration-300 opacity-25 cursor-not-allowed"
+              disabled>
+              <span>Activate Access</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-center font-mono text-xs text-white/25 mt-6">
+        Already have access? <a href="/login" class="text-white hover:text-white/70 underline underline-offset-2 transition-colors">Sign in</a>
+      </p>
+      <p class="text-center font-mono text-xs text-white/15 mt-2">
+        <a href="/" class="hover:text-white/30 transition-colors">← Return to home</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Email check ────────────────────────────────────────────────
+let emailTimer = null;
+let emailState = 'idle';
+
+document.getElementById('email').addEventListener('input', function() {
+  clearTimeout(emailTimer);
+  const email = this.value;
+  if (!email) { setEmailState('idle'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailState('invalid'); return; }
+  setEmailState('checking');
+  emailTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email})
+      });
+      const data = await res.json();
+      setEmailState(data.available ? 'available' : 'taken');
+    } catch { setEmailState('idle'); }
+  }, 600);
+});
+
+function setEmailState(state) {
+  emailState = state;
+  const slot = document.getElementById('email-icon-slot');
+  const fb   = document.getElementById('email-feedback');
+  const inp  = document.getElementById('email');
+  const states = {
+    idle:      {border:'border-white/10 focus:border-white/35', icon:'', fbHtml:''},
+    checking:  {border:'border-white/10 focus:border-white/35', icon:'<svg class="w-3.5 h-3.5 text-white/30 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" class="opacity-75"/></svg>', fbHtml:''},
+    available: {border:'border-green-500/40 focus:border-green-500/60', icon:'<i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-400"></i>', fbHtml:'<p class="font-mono text-[10px] text-green-400 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3 h-3"></i> Email is available</p>'},
+    taken:     {border:'border-red-500/60 focus:border-red-500', icon:'<i data-lucide="x-circle" class="w-3.5 h-3.5 text-red-400"></i>', fbHtml:'<p class="font-mono text-[10px] text-red-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3 h-3"></i> This email is already registered. <a href="/login" class="underline">Sign in instead?</a></p>'},
+    invalid:   {border:'border-orange-500/40 focus:border-orange-500/60', icon:'<i data-lucide="x-circle" class="w-3.5 h-3.5 text-orange-400"></i>', fbHtml:'<p class="font-mono text-[10px] text-orange-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3 h-3"></i> Please enter a valid email address</p>'},
+  };
+  const s = states[state];
+  // Reset border classes
+  inp.className = inp.className.replace(/border-\S+/g, '');
+  inp.className += ' border ' + s.border;
+  slot.innerHTML = s.icon;
+  fb.innerHTML   = s.fbHtml;
+  if (window.lucide) lucide.createIcons();
+  validateStep1();
+}
+
+// ── Role highlighting ──────────────────────────────────────────
+document.getElementById('role').addEventListener('change', function() {
+  const val = this.value;
+  document.querySelectorAll('.role-card').forEach(card => {
+    const active = card.dataset.role === val;
+    card.style.borderColor = active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.08)';
+    card.style.backgroundColor = active ? 'rgba(255,255,255,0.05)' : '';
+    card.querySelector('.role-icon').style.color = active ? '#fff' : 'rgba(255,255,255,0.25)';
+    card.querySelector('.role-label').style.color = active ? '#fff' : 'rgba(255,255,255,0.4)';
+    card.querySelector('.role-desc').style.color  = active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)';
+  });
+  validateStep1();
+});
+
+function validateStep1() {
+  const name  = document.getElementById('name').value.trim();
+  const role  = document.getElementById('role').value;
+  const valid = name.length > 1 && emailState === 'available' && role !== '';
+  const btn   = document.getElementById('step1-btn');
+  btn.disabled = !valid;
+  btn.classList.toggle('opacity-25', !valid);
+  btn.classList.toggle('cursor-not-allowed', !valid);
+  btn.classList.toggle('hover:bg-white/90', valid);
+}
+document.getElementById('name').addEventListener('input', validateStep1);
+
+// ── Step navigation ────────────────────────────────────────────
+function goToStep2() {
+  document.getElementById('step1-form').classList.add('hidden');
+  document.getElementById('step2-form').classList.remove('hidden');
+  // Update indicators
+  document.getElementById('step1-indicator').innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i>';
+  document.getElementById('step1-indicator').style.backgroundColor = '#fff';
+  document.getElementById('step1-indicator').style.color = '#000';
+  document.getElementById('step2-indicator').className = 'w-7 h-7 border flex items-center justify-center font-mono text-xs font-bold border-white text-white';
+  document.getElementById('step2-label').className = 'font-mono text-[10px] tracking-widest uppercase text-white';
+  document.getElementById('step-line').style.backgroundColor = 'rgba(255,255,255,0.4)';
+  if (window.lucide) lucide.createIcons();
+}
+
+function backToStep1() {
+  document.getElementById('step2-form').classList.add('hidden');
+  document.getElementById('step1-form').classList.remove('hidden');
+}
+
+// ── Password strength ──────────────────────────────────────────
+function checkStrength() {
+  const pw = document.getElementById('password').value;
+  const meter = document.getElementById('strength-meter');
+  if (!pw) { meter.classList.add('hidden'); return; }
+  meter.classList.remove('hidden');
+
+  const checks = [
+    {label:'At least 8 characters', ok: pw.length >= 8},
+    {label:'Uppercase letter',       ok: /[A-Z]/.test(pw)},
+    {label:'Number',                 ok: /[0-9]/.test(pw)},
+    {label:'Special character',      ok: /[^a-zA-Z0-9]/.test(pw)},
+  ];
+  const score  = checks.filter(c => c.ok).length;
+  const colors = ['','bg-red-500','bg-yellow-500','bg-blue-400','bg-white'];
+  const labels = ['','Weak','Fair','Good','Strong'];
+  const color  = colors[score];
+
+  [1,2,3,4].forEach(i => {
+    const bar = document.getElementById(`bar-${i}`);
+    bar.className = `h-0.5 flex-1 transition-all duration-300 ${i <= score ? color : 'bg-white/10'}`;
+  });
+
+  document.getElementById('strength-checks').innerHTML =
+    checks.map(c => `<span class="flex items-center gap-1 ${c.ok ? 'text-white/60' : 'text-white/20'}">
+      ${c.ok ? '✓' : '✗'} ${c.label}</span>`).join('') +
+    `<span class="${color.replace('bg-','text-')} ml-auto">${labels[score]}</span>`;
+
+  validateStep2();
+}
+
+function checkConfirm() {
+  const pw  = document.getElementById('password').value;
+  const cfm = document.getElementById('confirm').value;
+  const fb  = document.getElementById('confirm-feedback');
+  if (cfm.length > 0 && pw !== cfm) {
+    fb.innerHTML = '<p class="font-mono text-[10px] text-red-400 flex items-center gap-1.5">✗ Passwords do not match</p>';
+    document.getElementById('confirm').style.borderColor = 'rgba(239,68,68,0.4)';
+  } else if (cfm.length > 0) {
+    fb.innerHTML = '';
+    document.getElementById('confirm').style.borderColor = 'rgba(34,197,94,0.4)';
+  } else {
+    fb.innerHTML = '';
+    document.getElementById('confirm').style.borderColor = '';
+  }
+  validateStep2();
+}
+
+function validateStep2() {
+  const pw  = document.getElementById('password').value;
+  const cfm = document.getElementById('confirm').value;
+  const checks = [pw.length >= 8, /[A-Z]/.test(pw), /[0-9]/.test(pw), /[^a-zA-Z0-9]/.test(pw)];
+  const valid  = checks.every(Boolean) && pw === cfm;
+  const btn    = document.getElementById('step2-btn');
+  btn.disabled = !valid;
+  btn.classList.toggle('opacity-25', !valid);
+  btn.classList.toggle('cursor-not-allowed', !valid);
+}
+
+// ── Show/hide password ─────────────────────────────────────────
+let visStates = {};
+function toggleField(fieldId, iconId) {
+  visStates[fieldId] = !visStates[fieldId];
+  document.getElementById(fieldId).type = visStates[fieldId] ? 'text' : 'password';
+  document.getElementById(iconId).setAttribute('data-lucide', visStates[fieldId] ? 'eye-off' : 'eye');
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Submit ─────────────────────────────────────────────────────
+function submitRegister() {
+  document.getElementById('step2-form').classList.add('hidden');
+  document.getElementById('success-screen').classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+  setTimeout(() => { window.location.href = '/live'; }, 1800);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "dashboard/layout.html" %}
+{% block title %}Active Alerts — SonicSentinel AI{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full gap-6">
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <div class="section-header mb-2">Event response</div>
+      <h1 class="text-2xl font-bold tracking-tight">Alerts</h1>
+    </div>
+    <select id="alert-filter" class="bg-black border border-[#1f1f1f] px-3 py-2 text-sm">
+      <option value="active">Active alerts</option>
+      <option value="all">All alerts</option>
+    </select>
+  </div>
+
+  <div id="alerts-status" class="text-xs text-white/50 font-mono"></div>
+  <div id="alerts-container" class="grid grid-cols-1 gap-4">
+    <!-- Alerts injected here -->
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAlerts() {
+  const container = document.getElementById('alerts-container');
+  const status = document.getElementById('alerts-status');
+  try {
+    const response = await fetch('/api/history?limit=200');
+    if (!response.ok) throw new Error(`Alert request failed (${response.status})`);
+    const events = await response.json();
+    const allAlerts = events.filter((event) => event.is_alert);
+    const alerts = document.getElementById('alert-filter').value === 'active'
+      ? allAlerts.filter((event) => !['acknowledged', 'dismissed'].includes(event.alert_status))
+      : allAlerts;
+    container.replaceChildren();
+    status.textContent = `${alerts.length} ALERTS · ${allAlerts.length} TOTAL`;
+    if (!alerts.length) {
+      container.textContent = document.getElementById('alert-filter').value === 'active'
+        ? 'No active alerts.' : 'No alert events recorded.';
+      container.className = 'border border-[#1f1f1f] p-8 text-center text-white/50 font-mono text-sm';
+      return;
+    }
+    container.className = 'grid grid-cols-1 gap-4';
+    alerts.forEach((alert) => {
+      const card = document.createElement('article');
+      card.className = `bg-[#0a0a0a] border p-5 flex items-start justify-between gap-5 ${alert.severity === 'Critical' ? 'border-red-500/50' : 'border-[#1f1f1f]'}`;
+      const details = document.createElement('div');
+      const title = document.createElement('h2');
+      title.className = 'text-lg font-bold';
+      title.textContent = alert.label || 'Unknown sound';
+      const metadata = document.createElement('p');
+      metadata.className = 'mt-2 text-xs text-white/50 font-mono';
+      metadata.textContent = `${alert.audioId} · ${alert.timestamp ? new Date(alert.timestamp).toLocaleString() : '—'} · ${Math.round((Number(alert.confidence) || 0) * 100)}%`;
+      const summary = document.createElement('p');
+      summary.className = 'mt-3 text-sm text-white/70';
+      summary.textContent = alert.audio_summary || alert.scene_analysis?.summary || 'Alert event recorded.';
+      const state = document.createElement('p');
+      state.className = 'mt-2 text-xs text-white/50 font-mono uppercase';
+      state.textContent = `${alert.severity || 'Alert'} · ${alert.alert_status || 'active'}`;
+      details.append(title, metadata, summary, state);
+      const actions = document.createElement('div');
+      actions.className = 'flex gap-2 shrink-0';
+      if (!['acknowledged', 'dismissed'].includes(alert.alert_status)) {
+        [['acknowledged', 'ACK'], ['escalated', 'ESCALATE'], ['dismissed', 'DISMISS']].forEach(([action, label]) => {
+          const button = document.createElement('button');
+          button.className = 'btn-ghost';
+          button.textContent = label;
+          button.addEventListener('click', () => updateAlert(alert.audioId, action));
+          actions.append(button);
+        });
+      }
+      card.append(details, actions);
+      container.append(card);
+    });
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+async function updateAlert(audioId, action) {
+  const status = document.getElementById('alerts-status');
+  try {
+    const response = await fetch(`/api/events/${encodeURIComponent(audioId)}/alert`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action}),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || 'Could not update alert');
+    await loadAlerts();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+document.getElementById('alert-filter').addEventListener('change', loadAlerts);
+loadAlerts();
+</script>
+{% endblock %}

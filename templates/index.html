@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+{% block title %}SonicSentinel AI — AcousticX Intelligence{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-black text-white overflow-x-hidden" style="selection-background-color:#fff;selection-color:#000">
+
+  <!-- Global grid bg -->
+  <div class="fixed inset-0 pointer-events-none" style="
+    background-image: linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+    background-size: 72px 72px;"></div>
+  <!-- Vignette -->
+  <div class="fixed inset-0 pointer-events-none" style="
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 70%);"></div>
+
+  <!-- ── NAVBAR ──────────────────────────────────── -->
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-700">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-3 group">
+        <div class="relative">
+          <div class="w-8 h-8 border border-white/25 flex items-center justify-center transition-all duration-300 group-hover:border-white/60 group-hover:bg-white/5">
+            <i data-lucide="activity" class="w-4 h-4 text-white"></i>
+          </div>
+          <div class="absolute -top-0.5 -right-0.5 w-2 h-2 border-t border-r border-white/40"></div>
+          <div class="absolute -bottom-0.5 -left-0.5 w-2 h-2 border-b border-l border-white/40"></div>
+        </div>
+        <span class="font-mono font-bold tracking-[0.2em] text-sm">SONICSENTINEL<span class="text-white/30">.AI</span></span>
+      </a>
+
+      <!-- Desktop nav -->
+      <div class="hidden md:flex items-center gap-8">
+        {% for n in ['Features','Technology','About','Contact'] %}
+        <a href="#{{ n.lower() }}" class="font-mono text-xs tracking-widest text-white/40 hover:text-white transition-colors duration-200 uppercase relative group">
+          {{ n }}
+          <div class="absolute -bottom-0.5 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300"></div>
+        </a>
+        {% endfor %}
+      </div>
+
+      <!-- CTA -->
+      <div class="flex items-center gap-3">
+        <a href="/login" class="hidden md:flex items-center gap-2 font-mono text-xs tracking-widest text-white/40 hover:text-white transition-colors duration-200 uppercase">
+          <i data-lucide="lock" class="w-3 h-3"></i> Sign In
+        </a>
+        <a href="/register" class="group relative flex items-center gap-2 bg-white text-black px-5 py-2.5 font-mono text-xs tracking-widest uppercase font-bold overflow-hidden transition-all duration-300 hover:bg-white/90">
+          Get Access
+          <i data-lucide="arrow-right" class="w-3 h-3 transition-transform duration-300 group-hover:translate-x-1"></i>
+        </a>
+        <button id="menu-toggle" class="md:hidden p-2" onclick="toggleMenu()">
+          <div class="space-y-1.5">
+            <div id="bar1" class="w-5 h-px bg-white transition-all duration-300"></div>
+            <div id="bar2" class="w-5 h-px bg-white transition-all duration-300"></div>
+            <div id="bar3" class="w-5 h-px bg-white transition-all duration-300"></div>
+          </div>
+        </button>
+      </div>
+    </div>
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-black/98 border-t border-white/8 px-6 py-6 space-y-4">
+      {% for n in ['Features','Technology','About','Contact'] %}
+      <a href="#{{ n.lower() }}" class="block font-mono text-xs text-white/50 hover:text-white tracking-widest uppercase transition-colors">{{ n }}</a>
+      {% endfor %}
+      <a href="/login" class="block font-mono text-xs text-white/50 hover:text-white tracking-widest uppercase transition-colors">Sign In</a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ────────────────────────────────────── -->
+  <section class="relative min-h-screen flex flex-col items-center justify-center px-6 lg:px-8 pt-16 overflow-hidden">
+
+    <!-- Background: animated acoustic canvas -->
+    <div class="absolute inset-0 z-0 overflow-hidden">
+      <div class="absolute inset-0" style="background:radial-gradient(ellipse 130% 70% at 50% -10%,rgba(101,216,207,0.09) 0%,transparent 55%),radial-gradient(ellipse 70% 50% at 85% 110%,rgba(116,201,155,0.06) 0%,transparent 50%),#000000"></div>
+      <canvas id="hero-bg-canvas" class="absolute inset-0" style="width:100%;height:100%"></canvas>
+      <div class="absolute inset-0" style="background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:80px 80px"></div>
+      <div class="absolute inset-0" style="background:linear-gradient(to bottom,rgba(0,0,0,0.50) 0%,rgba(0,0,0,0.25) 35%,rgba(0,0,0,0.65) 75%,rgba(0,0,0,1) 100%)"></div>
+      <div class="absolute inset-0 pointer-events-none" style="background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)"></div>
+    </div>
+
+    <div id="hero-content" class="relative z-10 text-center max-w-6xl mx-auto transition-all duration-1000 opacity-0 translate-y-8">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2.5 border border-white/12 bg-white/5 backdrop-blur-sm px-5 py-2 mb-12 font-mono text-xs tracking-widest text-white/50">
+        <div class="flex gap-1"><div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div></div>
+        SYSTEM ONLINE — ACOUSTICX INTELLIGENCE v4.2.1
+        <i data-lucide="chevron-right" class="w-3 h-3 text-white/30"></i>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="text-7xl md:text-9xl lg:text-[140px] font-black tracking-[-0.04em] leading-[0.9] mb-8">
+        <span class="block text-white">SONIC</span>
+        <span class="block text-transparent" style="webkit-text-stroke:1px rgba(255,255,255,0.25);-webkit-text-stroke:1px rgba(255,255,255,0.25)">SENTINEL</span>
+      </h1>
+
+      <!-- Tagline -->
+      <p class="font-mono text-sm md:text-base text-white/30 tracking-[0.25em] uppercase mb-6">[ Real-Time Acoustic Intelligence Platform ]</p>
+      <p class="text-white/45 text-lg md:text-xl max-w-2xl mx-auto leading-[1.8] mb-14 font-light">
+        The world's most advanced acoustic event detection system. Dual-model AI fusion classifies threats in under 100ms — gunshots, alarms, screams, and more — 24/7 without interruption.
+      </p>
+
+      <!-- CTAs -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20">
+        <a href="/register" class="group flex items-center gap-3 bg-white text-black px-10 py-4 font-mono text-sm tracking-widest uppercase font-bold hover:bg-white/90 transition-all duration-300">
+          Start Free Trial <i data-lucide="arrow-right" class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"></i>
+        </a>
+        <a href="/live" class="group flex items-center gap-3 border border-white/20 px-10 py-4 font-mono text-sm tracking-widest uppercase text-white/60 hover:text-white hover:border-white/50 transition-all duration-300">
+          <i data-lucide="activity" class="w-4 h-4"></i> Live Dashboard
+        </a>
+      </div>
+
+      <!-- Waveform canvas -->
+      <div class="relative border border-white/10 bg-black overflow-hidden" style="height:160px">
+        <canvas id="waveform-canvas" class="absolute inset-0 w-full h-full"></canvas>
+        <div class="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black pointer-events-none"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none"></div>
+        <div class="absolute bottom-4 left-5 flex items-center gap-2 font-mono text-xs text-white/25">
+          <i data-lucide="mic" class="w-3 h-3"></i> LIVE FEED — 22,050 Hz — STEREO
+        </div>
+        <div class="absolute bottom-4 right-5 flex items-center gap-2 font-mono text-xs text-white/25">
+          <div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div> MONITORING
+        </div>
+        <div class="absolute top-4 right-5 font-mono text-xs text-white/15">AI PROCESSING ACTIVE</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STATS ──────────────────────────────────── -->
+  <section class="relative py-24 border-y border-white/8 z-10">
+    <div class="max-w-6xl mx-auto px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-white/8">
+      {% set stats = [
+        {'val': '99.4%', 'label': 'Detection Accuracy',   'icon': 'trending-up'},
+        {'val': '10',    'label': 'Sound Classifications', 'icon': 'layers'},
+        {'val': '87ms',  'label': 'Response Latency',      'icon': 'clock'},
+        {'val': '2',     'label': 'AI Models Fused',       'icon': 'brain'},
+      ] %}
+      {% for s in stats %}
+      <div class="px-8 py-6 text-center group" data-target="{{ s.val }}">
+        <div class="flex justify-center mb-3">
+          <i data-lucide="{{ s.icon }}" class="w-4 h-4 text-white/25 group-hover:text-white/60 transition-colors duration-300"></i>
+        </div>
+        <div class="text-4xl md:text-5xl font-black tracking-tighter font-mono mb-2 stat-counter">{{ s.val }}</div>
+        <div class="font-mono text-xs text-white/30 tracking-widest uppercase">{{ s.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ── VISUAL SHOWCASE ──────────────────────────── -->
+  <section class="relative z-10 py-0">
+    <div class="grid grid-cols-3 gap-px bg-white/5" style="height:320px">
+      <!-- Image 1: server room / data center -->
+      <div class="relative overflow-hidden group">
+        <img
+          src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=900&q=80&auto=format&fit=crop"
+          alt="AI processing hardware"
+          class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          style="filter:grayscale(100%) brightness(0.45) contrast(1.15)"
+          loading="lazy"
+        />
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 55%)"></div>
+        <div class="absolute top-0 left-0 w-5 h-5 border-t border-l border-white/25"></div>
+        <div class="absolute bottom-5 left-5">
+          <div class="font-mono text-[9px] text-white/35 tracking-widest mb-1">MODULE 01</div>
+          <div class="font-mono text-xs text-white/70 tracking-wide">NEURAL INFERENCE ENGINE</div>
+        </div>
+      </div>
+      <!-- Image 2: sound wave / audio visualization -->
+      <div class="relative overflow-hidden group">
+        <img
+          src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900&q=80&auto=format&fit=crop"
+          alt="Sound wave analysis"
+          class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          style="filter:grayscale(100%) brightness(0.40) contrast(1.2)"
+          loading="lazy"
+        />
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 55%)"></div>
+        <div class="absolute top-0 left-0 w-5 h-5 border-t border-l border-white/25"></div>
+        <div class="absolute bottom-5 left-5">
+          <div class="font-mono text-[9px] text-white/35 tracking-widest mb-1">MODULE 02</div>
+          <div class="font-mono text-xs text-white/70 tracking-wide">ACOUSTIC SPECTRUM ANALYSIS</div>
+        </div>
+      </div>
+      <!-- Image 3: security / surveillance -->
+      <div class="relative overflow-hidden group">
+        <img
+          src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=900&q=80&auto=format&fit=crop"
+          alt="Security monitoring"
+          class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          style="filter:grayscale(100%) brightness(0.42) contrast(1.15)"
+          loading="lazy"
+        />
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 55%)"></div>
+        <div class="absolute top-0 left-0 w-5 h-5 border-t border-l border-white/25"></div>
+        <div class="absolute bottom-5 left-5">
+          <div class="font-mono text-[9px] text-white/35 tracking-widest mb-1">MODULE 03</div>
+          <div class="font-mono text-xs text-white/70 tracking-wide">24/7 THREAT MONITORING</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FEATURES ───────────────────────────────── -->
+  <section id="features" class="relative py-32 z-10">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="mb-20 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-12">
+        <div>
+          <div class="font-mono text-xs text-white/25 tracking-widest mb-5 uppercase flex items-center gap-3">
+            <div class="w-8 h-px bg-white/20"></div> Capability Matrix
+          </div>
+          <h2 class="text-5xl md:text-7xl font-black tracking-tighter">
+            Built for<br/>
+            <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">Zero Failure</span>
+          </h2>
+        </div>
+        <!-- Feature header image -->
+        <div class="relative lg:w-80 shrink-0 overflow-hidden" style="height:200px">
+          <img
+            src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80&auto=format&fit=crop"
+            alt="Binary data stream"
+            class="w-full h-full object-cover"
+            style="filter:grayscale(100%) brightness(0.38) contrast(1.3)"
+            loading="lazy"
+          />
+          <div class="absolute inset-0" style="background:linear-gradient(135deg,rgba(0,0,0,0.7) 0%,transparent 50%,rgba(0,0,0,0.5) 100%)"></div>
+          <div class="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/30"></div>
+          <div class="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/30"></div>
+          <div class="absolute bottom-3 left-4 font-mono text-[9px] text-white/35 tracking-widest">SIGNAL INTELLIGENCE ACTIVE</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/5">
+        {% set features = [
+          {'icon':'zap',       'title':'Sub-100ms Detection',    'tag':'PERFORMANCE','desc':'From raw audio input to classified event with recommended action in under 100 milliseconds. Zero perceptible lag between threat and response.'},
+          {'icon':'brain',     'title':'Dual Neural Fusion',      'tag':'AI ENGINE',  'desc':'Python Keras network and Google Teachable Machine run in parallel, cross-validating every prediction for maximum reliability.'},
+          {'icon':'mic',       'title':'Live Mic Streaming',      'tag':'REAL-TIME',  'desc':'Browser-native MediaRecorder captures 3-second sliding windows, processed and classified with live confidence readouts.'},
+          {'icon':'volume-2',  'title':'10-Class Acoustics',      'tag':'COVERAGE',   'desc':'Gunshot, Glass Breaking, Alarm, Vehicle Horn, Animal Sound, Panic Scream, Aggression, Machinery Fault, Help Call, Background Noise.'},
+          {'icon':'shield',    'title':'Severity Intelligence',   'tag':'SECURITY',   'desc':'Critical → High → Medium → Low → Informational, with auto-mapped recommended actions, alert dispatch, and escalation paths.'},
+          {'icon':'bar-chart-2','title':'Analytics Command Center','tag':'INSIGHTS',  'desc':'Historical trends, false-positive rates, model agreement statistics, and confidence distributions across your full event corpus.'},
+          {'icon':'search',    'title':'Manual Review Queue',     'tag':'GOVERNANCE', 'desc':'Uncertain predictions flagged for human validation. Reviewers confirm, override, or reject with full immutable audit trail.'},
+          {'icon':'upload',    'title':'Forensic File Analysis',  'tag':'FORENSICS',  'desc':'WAV, MP3, FLAC, OGG, M4A batch upload. Deep spectrogram + waveform generation, metadata extraction, and full model comparison.'},
+        ] %}
+        {% for f in features %}
+        <div class="group relative bg-black p-8 hover:bg-white/[0.025] transition-all duration-500 cursor-default border border-transparent hover:border-white/8">
+          <div class="absolute top-0 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-500"></div>
+          <div class="mb-6 flex items-center justify-between">
+            <div class="w-10 h-10 border border-white/12 flex items-center justify-center group-hover:border-white/30 transition-all duration-300">
+              <i data-lucide="{{ f.icon }}" class="w-4 h-4 text-white/50 group-hover:text-white transition-colors duration-300"></i>
+            </div>
+            <span class="font-mono text-[10px] text-white/20 tracking-widest">[{{ f.tag }}]</span>
+          </div>
+          <h3 class="font-bold text-base mb-3 leading-tight group-hover:text-white transition-colors duration-300">{{ f.title }}</h3>
+          <p class="text-white/35 text-sm leading-relaxed group-hover:text-white/55 transition-colors duration-300">{{ f.desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TECHNOLOGY ─────────────────────────────── -->
+  <section id="technology" class="relative py-32 border-t border-white/8 z-10">
+    <!-- Full-width image banner -->
+    <div class="relative overflow-hidden mb-20" style="height:260px">
+      <img
+        src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1600&q=80&auto=format&fit=crop"
+        alt="Command center operations"
+        class="w-full h-full object-cover object-center"
+        style="filter:grayscale(100%) brightness(0.32) contrast(1.2)"
+        loading="lazy"
+      />
+      <div class="absolute inset-0" style="background:linear-gradient(to right,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.3) 40%,rgba(0,0,0,0.3) 60%,rgba(0,0,0,0.9) 100%)"></div>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="text-center">
+          <div class="font-mono text-[10px] text-white/30 tracking-[0.3em] mb-3 uppercase">Dual Model Architecture</div>
+          <div class="font-black text-4xl md:text-6xl tracking-tighter">TWO BRAINS. ONE VERDICT.</div>
+        </div>
+      </div>
+      <div class="absolute top-0 left-0 w-6 h-6 border-t border-l border-white/20"></div>
+      <div class="absolute top-0 right-0 w-6 h-6 border-t border-r border-white/20"></div>
+      <div class="absolute bottom-0 left-0 w-6 h-6 border-b border-l border-white/20"></div>
+      <div class="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-white/20"></div>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-24 items-start">
+      <div>
+        <div class="font-mono text-xs text-white/25 tracking-widest mb-5 uppercase flex items-center gap-3">
+          <div class="w-8 h-px bg-white/20"></div> Dual Model Architecture
+        </div>
+        <h2 class="text-5xl md:text-6xl font-black tracking-tighter mb-8 leading-tight">
+          Two Brains.<br/>
+          <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">One Verdict.</span>
+        </h2>
+        <p class="text-white/40 leading-relaxed mb-10 text-lg">
+          Every audio segment runs through two completely independent neural networks. The system computes confidence deltas, top-two margins, and a model agreement score before delivering a final hardened classification.
+        </p>
+        <!-- Pipeline steps -->
+        <div class="space-y-0">
+          {% set pipeline = [
+            {'icon':'mic',       'label':'Audio Capture',       'detail':'Web Audio API / File Upload'},
+            {'icon':'cpu',       'label':'Preprocessing',       'detail':'MFCC + Mel-Spectrogram extraction'},
+            {'icon':'brain',     'label':'Python Keras Model',  'detail':'Deep CNN inference, top-3 classes'},
+            {'icon':'globe',     'label':'GTM Model',           'detail':'Google Teachable Machine parallel run'},
+            {'icon':'bar-chart-2','label':'Fusion Engine',      'detail':'Agreement score, delta, margin analysis'},
+            {'icon':'shield',    'label':'Decision & Alert',    'detail':'Severity mapping, escalation, dispatch'},
+          ] %}
+          {% for step in pipeline %}
+          <div class="flex gap-5 group">
+            <div class="flex flex-col items-center">
+              <div class="w-9 h-9 border border-white/12 flex items-center justify-center shrink-0 group-hover:border-white/35 transition-all duration-300 bg-black">
+                <i data-lucide="{{ step.icon }}" class="w-3.5 h-3.5 text-white/40 group-hover:text-white transition-colors duration-300"></i>
+              </div>
+              {% if not loop.last %}<div class="w-px flex-1 bg-white/8 my-0.5"></div>{% endif %}
+            </div>
+            <div class="pb-7">
+              <div class="font-semibold text-sm pt-2">{{ step.label }}</div>
+              <div class="font-mono text-xs text-white/30 mt-0.5">{{ step.detail }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Sound classes -->
+      <div>
+        <div class="font-mono text-xs text-white/25 tracking-widest mb-6 uppercase flex items-center gap-3">
+          <div class="w-8 h-px bg-white/20"></div> 10 Mandatory Sound Classes
+        </div>
+        <div class="grid grid-cols-1 gap-px bg-white/5">
+          {% set sound_classes = [
+            {'label':'Machinery Fault',        'icon':'cpu'},
+            {'label':'Glass Breaking',         'icon':'layers'},
+            {'label':'Alarm or Siren',         'icon':'radio'},
+            {'label':'Vehicle Horn',           'icon':'volume-2'},
+            {'label':'Animal Sound',           'icon':'activity'},
+            {'label':'Gunshot',                'icon':'alert-triangle'},
+            {'label':'Panic Scream',           'icon':'zap'},
+            {'label':'Aggression',             'icon':'shield'},
+            {'label':'Person Asking for Help', 'icon':'users'},
+            {'label':'Background Noise',       'icon':'eye'},
+          ] %}
+          {% for sc in sound_classes %}
+          <div class="bg-black flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition-all duration-200 group cursor-default border border-transparent hover:border-white/8">
+            <div class="w-8 h-8 border border-white/8 flex items-center justify-center shrink-0 group-hover:border-white/25 transition-all duration-300">
+              <i data-lucide="{{ sc.icon }}" class="w-3.5 h-3.5 text-white/30 group-hover:text-white/70 transition-colors duration-300"></i>
+            </div>
+            <span class="font-mono text-sm text-white/50 group-hover:text-white transition-colors duration-300">{{ sc.label }}</span>
+            <div class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-white/40"></i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TESTIMONIALS ───────────────────────────── -->
+  <section class="relative py-32 border-t border-white/8 z-10">
+    <!-- Testimonial background image strip -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <img
+        src="https://images.unsplash.com/photo-1510511459019-5dda7724fd87?w=1600&q=60&auto=format&fit=crop"
+        alt=""
+        class="w-full h-full object-cover"
+        style="filter:grayscale(100%) brightness(0.08) contrast(1.1)"
+        loading="lazy"
+      />
+    </div>
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="mb-16">
+        <div class="font-mono text-xs text-white/25 tracking-widest mb-5 uppercase flex items-center gap-3">
+          <div class="w-8 h-px bg-white/20"></div> Trusted By Operators Worldwide
+        </div>
+        <h2 class="text-4xl md:text-5xl font-black tracking-tighter">
+          What the field<br/>
+          <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">is saying</span>
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
+        {% set testimonials = [
+          {'name':'Dr. Sarah Chen',  'role':'Chief Security Officer, NexusCorp', 'quote':'SonicSentinel reduced our acoustic threat response time by 94%. The dual-model verification gives us unprecedented confidence in every alert.'},
+          {'name':'Marcus Okonkwo', 'role':'Head of Operations, AeroShield Ltd', 'quote':'We evaluated 12 acoustic AI platforms. SonicSentinel was in a different league — the model agreement engine alone is worth the investment.'},
+          {'name':'Yuki Tanaka',    'role':'Lead Engineer, DeepWatch Systems',   'quote':'The forensic analysis pipeline is extraordinary. Waveform, spectrogram, dual-confidence breakdown — everything a security team needs.'},
+        ] %}
+        {% for t in testimonials %}
+        <div class="bg-black p-8 hover:bg-white/[0.025] transition-all duration-500 group">
+          <div class="flex gap-0.5 mb-6">
+            {% for _ in range(5) %}
+            <i data-lucide="star" class="w-3.5 h-3.5 text-white/60" style="fill:rgba(255,255,255,0.6)"></i>
+            {% endfor %}
+          </div>
+          <p class="text-white/50 leading-relaxed mb-8 group-hover:text-white/65 transition-colors duration-300">&ldquo;{{ t.quote }}&rdquo;</p>
+          <div>
+            <div class="font-semibold text-sm">{{ t.name }}</div>
+            <div class="font-mono text-xs text-white/30 mt-0.5">{{ t.role }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ABOUT ──────────────────────────────────── -->
+  <section id="about" class="relative py-32 border-t border-white/8 z-10">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <!-- About image + heading row -->
+      <div class="flex flex-col lg:flex-row gap-12 items-center mb-20">
+        <div class="lg:w-1/2">
+          <div class="relative overflow-hidden" style="height:280px">
+            <img
+              src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=900&q=80&auto=format&fit=crop"
+              alt="AI robot technology"
+              class="w-full h-full object-cover"
+              style="filter:grayscale(100%) brightness(0.40) contrast(1.2)"
+              loading="lazy"
+            />
+            <div class="absolute inset-0" style="background:linear-gradient(to right,transparent 60%,rgba(0,0,0,0.9) 100%)"></div>
+            <div class="absolute top-0 left-0 w-5 h-5 border-t border-l border-white/25"></div>
+            <div class="absolute bottom-0 right-0 w-5 h-5 border-b border-r border-white/25"></div>
+            <!-- Scan line overlay -->
+            <div class="absolute inset-0 pointer-events-none" style="background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.12) 3px,rgba(0,0,0,0.12) 4px)"></div>
+            <div class="absolute bottom-4 left-5 font-mono text-[9px] text-white/30 tracking-widest">ACOUSTIC AI — GENERATION IV</div>
+          </div>
+        </div>
+        <div class="lg:w-1/2 text-center lg:text-left">
+          <div class="font-mono text-xs text-white/25 tracking-widest mb-5 uppercase">About the Platform</div>
+          <h2 class="text-5xl md:text-7xl font-black tracking-tighter">
+            Designed for<br/>
+            <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">2090 and Beyond</span>
+          </h2>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
+        {% set about = [
+          {'icon':'award',    'num':'01','title':'Mission',   'body':"SonicSentinel gives security teams, industrial operators, and researchers superhuman acoustic awareness. Every sound tells a story — we decode it in real time."},
+          {'icon':'eye',      'num':'02','title':'Vision',    'body':"A world where acoustic threats are neutralized before humans can perceive them. Where AI listens 24/7 so your team doesn't have to."},
+          {'icon':'database', 'num':'03','title':'Integrity', 'body':"No fake confidence scores. No placeholder predictions. Every output is the result of a real inference pipeline. Integrity is non-negotiable."},
+        ] %}
+        {% for a in about %}
+        <div class="bg-black p-10 hover:bg-white/[0.025] transition-all duration-500 group">
+          <div class="flex items-start justify-between mb-8">
+            <div class="w-12 h-12 border border-white/12 flex items-center justify-center group-hover:border-white/30 transition-all duration-300">
+              <i data-lucide="{{ a.icon }}" class="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors duration-300"></i>
+            </div>
+            <span class="font-mono text-4xl font-black" style="color:rgba(255,255,255,0.06)">{{ a.num }}</span>
+          </div>
+          <h3 class="text-xl font-black mb-4">{{ a.title }}</h3>
+          <p class="text-white/40 leading-relaxed text-sm group-hover:text-white/55 transition-colors duration-300">{{ a.body }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Bottom image strip -->
+      <div class="grid grid-cols-2 gap-px bg-white/5 mt-px" style="height:180px">
+        <div class="relative overflow-hidden group">
+          <img
+            src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=900&q=80&auto=format&fit=crop"
+            alt="Microphone recording"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            style="filter:grayscale(100%) brightness(0.38) contrast(1.2)"
+            loading="lazy"
+          />
+          <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,0.8) 0%,transparent 60%)"></div>
+          <div class="absolute bottom-4 left-5 font-mono text-[9px] text-white/35 tracking-widest">MICROPHONE CAPTURE — 16 kHz MONO</div>
+        </div>
+        <div class="relative overflow-hidden group">
+          <img
+            src="https://images.unsplash.com/photo-1563986768609-322da13575f3?w=900&q=80&auto=format&fit=crop"
+            alt="Cybersecurity network"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            style="filter:grayscale(100%) brightness(0.35) contrast(1.2)"
+            loading="lazy"
+          />
+          <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,0.8) 0%,transparent 60%)"></div>
+          <div class="absolute bottom-4 left-5 font-mono text-[9px] text-white/35 tracking-widest">THREAT CLASSIFICATION — REAL-TIME</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTACT ────────────────────────────────── -->
+  <section id="contact" class="relative py-32 border-t border-white/8 z-10">
+    <div class="max-w-2xl mx-auto px-6 lg:px-8">
+      <div class="text-center mb-14">
+        <div class="font-mono text-xs text-white/25 tracking-widest mb-5 uppercase">Establish Connection</div>
+        <h2 class="text-5xl md:text-6xl font-black tracking-tighter">
+          Contact<br/>
+          <span style="-webkit-text-stroke:1px rgba(255,255,255,0.25);color:transparent">Command</span>
+        </h2>
+      </div>
+      <form class="space-y-5" id="contact-form">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Full Name</label>
+            <input type="text" required placeholder="Your name" class="w-full bg-transparent border border-white/10 px-4 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+          </div>
+          <div>
+            <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Email</label>
+            <input type="email" required placeholder="your@email.com" class="w-full bg-transparent border border-white/10 px-4 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200" />
+          </div>
+        </div>
+        <div>
+          <label class="font-mono text-[10px] text-white/30 tracking-[0.2em] block mb-2 uppercase">Message</label>
+          <textarea rows="5" required placeholder="Your message..." class="w-full bg-transparent border border-white/10 px-4 py-3 text-sm font-mono text-white placeholder-white/15 focus:outline-none focus:border-white/35 transition-colors duration-200 resize-none"></textarea>
+        </div>
+        <button type="submit" class="group w-full flex items-center justify-center gap-3 bg-white text-black py-4 font-mono text-sm tracking-widest uppercase font-bold hover:bg-white/90 transition-all duration-300">
+          Send Transmission
+          <i data-lucide="arrow-right" class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"></i>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────── -->
+  <footer class="relative border-t border-white/8 py-16 z-10">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row justify-between items-start gap-10 mb-12">
+        <div>
+          <a href="/" class="flex items-center gap-3 mb-5">
+            <div class="w-7 h-7 border border-white/25 flex items-center justify-center">
+              <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+            </div>
+            <span class="font-mono font-bold tracking-[0.2em] text-sm">SONICSENTINEL<span class="text-white/30">.AI</span></span>
+          </a>
+          <p class="text-white/30 text-sm max-w-xs leading-relaxed">Real-Time Acoustic Intelligence for the next generation of security operations.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-x-16 gap-y-3">
+          {% for link in [('Dashboard','/live'),('Login','/login'),('Register','/register'),('Features','#features'),('Technology','#technology'),('Contact','#contact')] %}
+          <a href="{{ link[1] }}" class="font-mono text-xs text-white/30 hover:text-white transition-colors duration-200 uppercase tracking-widest">{{ link[0] }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="border-t border-white/8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="font-mono text-xs text-white/20 tracking-widest">SONICSENTINEL.AI © 2090 — ALL FREQUENCIES RESERVED</div>
+        <div class="flex items-center gap-4">
+          {% for icon in ['code-2','send','rss'] %}
+          <button class="w-8 h-8 border border-white/10 flex items-center justify-center hover:border-white/30 hover:text-white text-white/30 transition-all duration-300">
+            <i data-lucide="{{ icon }}" class="w-3.5 h-3.5"></i>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Hero background canvas ────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('hero-bg-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let frame = 0;
+  const rings = Array.from({length: 6}, (_, i) => ({
+    phase: (i / 6) * Math.PI * 2,
+    speed: 0.008 + i * 0.003,
+    radius: 0.12 + i * 0.09,
+    amp: 18 + i * 8,
+    freq: 3 + i,
+    alpha: 0.06 + (5 - i) * 0.025,
+  }));
+  function draw() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    const cx = W * 0.5, cy = H * 0.42;
+    rings.forEach(r => {
+      const baseR = Math.min(W, H) * r.radius;
+      ctx.beginPath();
+      for (let a = 0; a <= Math.PI * 2; a += 0.02) {
+        const noise = Math.sin(a * r.freq + frame * r.speed + r.phase) * r.amp
+                    + Math.sin(a * (r.freq + 2) + frame * r.speed * 1.3) * r.amp * 0.4;
+        const rad = baseR + noise;
+        const x = cx + Math.cos(a) * rad;
+        const y = cy + Math.sin(a) * rad * 0.55;
+        a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(101,216,207,${r.alpha})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+    // Horizontal frequency lines
+    for (let i = 0; i < 5; i++) {
+      const y = H * (0.25 + i * 0.12);
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 4) {
+        const v = Math.sin(x * 0.012 + frame * 0.02 + i * 1.1) * (6 + i * 3)
+                + Math.sin(x * 0.025 + frame * 0.015 + i) * 4;
+        x === 0 ? ctx.moveTo(x, y + v) : ctx.lineTo(x, y + v);
+      }
+      ctx.strokeStyle = `rgba(255,255,255,${0.025 - i * 0.003})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Navbar scroll effect ───────────────────────────────────────
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 50) {
+    navbar.style.backgroundColor = 'rgba(0,0,0,0.75)';
+    navbar.style.backdropFilter = 'blur(24px)';
+    navbar.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+  } else {
+    navbar.style.backgroundColor = '';
+    navbar.style.backdropFilter = '';
+    navbar.style.borderBottom = '';
+  }
+});
+
+// ── Hero entrance ──────────────────────────────────────────────
+requestAnimationFrame(() => {
+  const hero = document.getElementById('hero-content');
+  hero.style.opacity = '1';
+  hero.style.transform = 'translateY(0)';
+});
+
+// ── Mobile menu ────────────────────────────────────────────────
+let menuOpen = false;
+function toggleMenu() {
+  menuOpen = !menuOpen;
+  const menu = document.getElementById('mobile-menu');
+  const bar1 = document.getElementById('bar1');
+  const bar2 = document.getElementById('bar2');
+  const bar3 = document.getElementById('bar3');
+  menu.classList.toggle('hidden', !menuOpen);
+  if (menuOpen) {
+    bar1.style.transform = 'rotate(45deg) translateY(6px)';
+    bar2.style.opacity = '0';
+    bar3.style.transform = 'rotate(-45deg) translateY(-6px)';
+  } else {
+    bar1.style.transform = '';
+    bar2.style.opacity = '';
+    bar3.style.transform = '';
+  }
+}
+
+// ── Waveform canvas animation ──────────────────────────────────
+(function() {
+  const canvas = document.getElementById('waveform-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let frame = 0, raf = 0;
+  function draw() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const bars = 120;
+    const bw = canvas.width / bars;
+    for (let i = 0; i < bars; i++) {
+      const t = frame * 0.04;
+      const h = (
+        Math.sin((i / bars) * Math.PI * 3 + t) * 0.35 +
+        Math.sin((i / bars) * Math.PI * 7 + t * 1.3) * 0.25 +
+        Math.sin((i / bars) * Math.PI * 1.5 + t * 0.7) * 0.4
+      ) * 0.5 + 0.5;
+      const barH = h * canvas.height * 0.85;
+      const alpha = 0.15 + h * 0.85;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(i * bw + bw * 0.12, (canvas.height - barH) / 2, bw * 0.76, barH, 1);
+      } else {
+        ctx.rect(i * bw + bw * 0.12, (canvas.height - barH) / 2, bw * 0.76, barH);
+      }
+      ctx.fill();
+    }
+    frame++;
+    raf = requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Contact form ───────────────────────────────────────────────
+document.getElementById('contact-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  alert("Transmission received. We'll respond within 24 hours.");
+});
+</script>
+{% endblock %}

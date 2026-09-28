@@ -1,0 +1,663 @@
+{% extends "dashboard/layout.html" %}
+{% block title %}Live Detector — SonicSentinel AI{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+.lv-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.lv-label::before{content:'';display:inline-block;width:10px;height:1px;background:var(--accent)}
+.lv-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid var(--border);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;transition:all .2s}
+.lv-pill.ready{border-color:rgba(116,201,155,.5);color:#74c99b}
+.lv-pill.offline{border-color:rgba(237,101,93,.4);color:#ed655d}
+.lv-pill.loading{border-color:rgba(229,183,95,.4);color:#e5b75f}
+.lv-pill.skipped{border-color:var(--border);color:var(--muted)}
+.lv-pill.requires_credentials{border-color:rgba(229,183,95,.3);color:#e5b75f}
+.lv-pill.unavailable{border-color:var(--border);color:var(--muted)}
+.lv-pill.error{border-color:rgba(237,101,93,.5);color:#ed655d}
+.lv-metric{border:1px solid var(--border);padding:10px 12px;background:rgba(0,0,0,.35);transition:border-color .2s}
+.lv-metric:hover{border-color:rgba(255,255,255,.18)}
+.lv-metric-val{font-family:var(--font-display);font-size:20px;font-weight:900;color:var(--accent);line-height:1;margin-top:4px;transition:color .3s}
+.lv-metric-lbl{font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.12em}
+.pred-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.pred-row:last-child{border-bottom:none}
+.pred-bar-bg{flex:1;height:2px;background:rgba(255,255,255,.07)}
+.pred-bar-fill{height:100%;background:var(--accent);transition:width .5s}
+.tl-chip{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;border-left:2px solid transparent}
+.tl-chip:hover{background:rgba(255,255,255,.03)}
+.tl-chip.selected{background:rgba(101,216,207,.05);border-left-color:var(--accent)}
+.tl-chip.is-anomaly{border-left-color:#e5b75f}
+.tl-chip-type{font-family:var(--font-mono);font-size:8px;letter-spacing:.14em;color:var(--accent)}
+.tl-chip-time{font-family:var(--font-mono);font-size:8px;color:var(--muted)}
+.tl-chip-label{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);margin-top:2px}
+.tl-chip-sub{font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:2px}
+.vad-seg{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid rgba(116,201,155,.3);color:#74c99b;font-family:var(--font-mono);font-size:8px;margin:2px}
+.tr-box{background:rgba(0,0,0,.5);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono);font-size:11px;color:var(--text);line-height:1.7;min-height:44px;white-space:pre-wrap;word-break:break-word}
+.step-dot{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;opacity:.2;transition:opacity .3s,color .3s}
+.step-dot.on{opacity:1;color:var(--accent)}
+.anomaly-normal{color:#74c99b}
+.anomaly-detected{color:#e5b75f}
+.anomaly-building{color:var(--muted)}
+@keyframes pulse-accent{0%,100%{opacity:1}50%{opacity:.4}}
+.analyzing-pulse{animation:pulse-accent 1s ease-in-out infinite}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="live-page" style="display:flex;flex-direction:column;gap:14px">
+
+  <!-- PAGE HEADER -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid var(--border);padding-bottom:14px">
+    <div>
+      <div class="lv-label" style="margin-bottom:5px">Open-Source Audio Intelligence</div>
+      <h1 style="font-family:var(--font-display);font-size:26px;font-weight:900;letter-spacing:.1em;margin:0;color:var(--text)">LIVE DETECTOR</h1>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div style="display:flex;gap:14px;align-items:center;margin-right:6px">
+        <span id="step-connect" class="step-dot">● CONNECT</span>
+        <span id="step-listen"  class="step-dot">● LISTEN</span>
+        <span id="step-analyze" class="step-dot">● ANALYZE</span>
+      </div>
+      <button id="btn-start" class="btn-primary" onclick="startMonitoring()">
+        <i data-lucide="mic" style="width:13px;height:13px"></i> START MONITORING
+      </button>
+      <button id="btn-stop" class="btn-primary btn-danger" onclick="stopMonitoring()" style="display:none">
+        <i data-lucide="square" style="width:13px;height:13px"></i> STOP
+      </button>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;flex-shrink:0">
+    <div class="lv-metric" style="text-align:center">
+      <div class="lv-metric-lbl">MICROPHONE</div>
+      <div style="margin-top:6px"><span id="st-mic" class="lv-pill offline">IDLE</span></div>
+    </div>
+    <div class="lv-metric" style="text-align:center">
+      <div class="lv-metric-lbl">BACKEND</div>
+      <div style="margin-top:6px"><span id="st-backend" class="lv-pill loading">CONNECTING</span></div>
+    </div>
+    <div class="lv-metric" style="text-align:center">
+      <div class="lv-metric-lbl">ANALYSIS</div>
+      <div style="margin-top:6px"><span id="st-analysis" class="lv-pill offline">PAUSED</span></div>
+    </div>
+    <div class="lv-metric" style="text-align:center">
+      <div class="lv-metric-lbl">CHUNKS SENT</div>
+      <div style="margin-top:6px"><span id="sess-chunks" style="font-family:var(--font-display);font-size:18px;font-weight:900;color:var(--accent)">0</span></div>
+    </div>
+  </div>
+
+  <!-- WAVEFORM -->
+  <div style="flex-shrink:0;border:1px solid var(--border);background:#000;position:relative;height:80px;overflow:hidden">
+    <canvas id="live-waveform-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    <div id="waveform-idle" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.22em">AWAITING MICROPHONE INPUT</div>
+    <div style="position:absolute;bottom:5px;left:10px;display:flex;align-items:center;gap:8px">
+      <span style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">LEVEL</span>
+      <div style="width:100px;height:2px;background:var(--border);overflow:hidden">
+        <div id="audio-level-bar" style="height:100%;width:0%;background:var(--accent);transition:width .08s"></div>
+      </div>
+      <span id="audio-level-pct" style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">0%</span>
+    </div>
+    <div style="position:absolute;top:5px;right:10px;font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.15em">LIVE — 16 kHz MONO</div>
+  </div>
+
+  <!-- MAIN GRID: 3 columns -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 290px;gap:12px">
+
+    <!-- COL 1: Sound Detection + Signal -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Sound Event Detection -->
+      <div class="glass-card" style="padding:16px;border-top:2px solid var(--accent)">
+        <div class="lv-label">Sound Event Detection — AST AudioSet-527</div>
+        <div style="margin:6px 0 10px">
+          <div style="font-family:var(--font-display);font-size:32px;font-weight:900;color:var(--text);line-height:1;letter-spacing:.02em;min-height:38px" id="sed-label">—</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+            <span style="font-family:var(--font-display);font-size:26px;font-weight:900;color:var(--accent)" id="sed-conf">—</span>
+            <span id="sed-status" class="lv-pill loading">LOADING</span>
+            <span style="font-family:var(--font-mono);font-size:8px;color:var(--muted)" id="sed-latency"></span>
+          </div>
+        </div>
+        <div class="lv-label">Top Predictions</div>
+        <div id="sed-preds" style="margin-top:4px">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">Waiting for audio…</div>
+        </div>
+      </div>
+
+      <!-- Model Status -->
+      <div class="glass-card" style="padding:14px">
+        <div class="lv-label">Model Status</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <div style="border:1px solid var(--border);padding:8px">
+            <div style="font-family:var(--font-mono);font-size:7px;color:var(--muted);letter-spacing:.1em;margin-bottom:5px">SILERO VAD</div>
+            <div id="ms-vad" class="lv-pill loading">LOADING</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:8px">
+            <div style="font-family:var(--font-mono);font-size:7px;color:var(--muted);letter-spacing:.1em;margin-bottom:5px">AST AUDIOSET</div>
+            <div id="ms-sed" class="lv-pill loading">LOADING</div>
+          </div>
+          <div style="border:1px solid var(--border);padding:8px">
+            <div style="font-family:var(--font-mono);font-size:7px;color:var(--muted);letter-spacing:.1em;margin-bottom:5px">WHISPER BASE</div>
+            <div id="ms-asr" class="lv-pill loading">LOADING</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal Analysis -->
+      <div class="glass-card" style="padding:14px">
+        <div class="lv-label">Signal Analysis</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <div class="lv-metric"><div class="lv-metric-lbl">RMS</div><div class="lv-metric-val" id="sig-rms">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">PEAK</div><div class="lv-metric-val" id="sig-peak">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">SPEC CTR</div><div class="lv-metric-val" id="sig-sc">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">DOM FREQ</div><div class="lv-metric-val" id="sig-df">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">ZCR</div><div class="lv-metric-val" id="sig-zcr">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">SILENCE%</div><div class="lv-metric-val" id="sig-sil">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">DURATION</div><div class="lv-metric-val" id="sig-dur">—</div></div>
+          <div class="lv-metric"><div class="lv-metric-lbl">ENERGY Δ</div><div class="lv-metric-val" id="sig-delta">—</div></div>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+          <span id="transient-badge" style="display:none" class="lv-pill offline">⚡ TRANSIENT</span>
+          <span id="sig-latency" style="font-family:var(--font-mono);font-size:8px;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <!-- Anomaly Detection -->
+      <div class="glass-card" style="padding:14px">
+        <div class="lv-label">Acoustic Anomaly Detection</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <div>
+            <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);margin-bottom:4px">STATUS</div>
+            <div style="font-family:var(--font-display);font-size:16px;font-weight:900" id="anomaly-status" class="anomaly-building">BUILDING BASELINE</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);margin-bottom:4px">ANOMALY SCORE</div>
+            <div style="font-family:var(--font-display);font-size:22px;font-weight:900;color:var(--accent)" id="anomaly-score">—</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);margin-bottom:4px">Z-SCORE</div>
+            <div style="font-family:var(--font-mono);font-size:13px;color:var(--text)" id="anomaly-z">—</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);margin-bottom:4px">BASELINE</div>
+            <div style="font-family:var(--font-mono);font-size:13px;color:var(--text)" id="anomaly-baseline">0 chunks</div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);margin-bottom:3px">SCORE BAR</div>
+          <div style="height:3px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div id="anomaly-bar" style="height:100%;width:0%;background:var(--accent);transition:width .5s"></div>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-family:var(--font-mono);font-size:8px;color:var(--muted)">
+          Spectral z-score vs rolling baseline · threshold: <span id="anomaly-threshold">2.5</span>σ
+        </div>
+      </div>
+
+    </div><!-- end col 1 -->
+
+    <!-- COL 2: Speech + Session -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- VAD + Transcript -->
+      <div class="glass-card" style="padding:16px;border-top:2px solid rgba(116,201,155,.5)">
+        <div class="lv-label">Voice Activity Detection</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+          <span id="vad-badge" class="lv-pill offline">VAD: IDLE</span>
+          <span id="vad-ratio" style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">Speech: —</span>
+          <span id="ms-vad2" style="font-family:var(--font-mono);font-size:8px;color:var(--muted)"></span>
+        </div>
+        <div class="lv-label">Speech Segments</div>
+        <div id="vad-segments" style="margin-bottom:12px;min-height:22px">
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">—</span>
+        </div>
+        <div class="lv-label">Live Transcript — Whisper Base</div>
+        <div id="transcript-box" class="tr-box">Waiting for speech…</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;align-items:center">
+          <span id="transcript-lang" style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">—</span>
+          <span id="transcript-status" class="lv-pill loading" style="font-size:7px">LOADING</span>
+        </div>
+        <div id="transcript-uncertain" style="display:none;margin-top:5px;font-family:var(--font-mono);font-size:8px;color:var(--warning)">⚠ Low-confidence — transcript may be inaccurate</div>
+      </div>
+
+      <!-- Session info -->
+      <div class="glass-card" style="padding:14px">
+        <div class="lv-label">Session</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">Session ID</span>
+            <span style="font-family:var(--font-mono);font-size:8px;color:var(--text)" id="sess-id">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">Started</span>
+            <span style="font-family:var(--font-mono);font-size:8px;color:var(--text)" id="sess-start">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">Avg Latency</span>
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--text)" id="sess-latency">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0">
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">Anomalies</span>
+            <span style="font-family:var(--font-mono);font-size:9px;color:#e5b75f" id="sess-anomalies">0</span>
+          </div>
+        </div>
+        <button onclick="clearSession()" style="margin-top:10px;font-family:var(--font-mono);font-size:8px;color:var(--muted);background:none;border:1px solid var(--border);padding:5px 12px;cursor:pointer;letter-spacing:.12em;width:100%;text-transform:uppercase;transition:border-color .2s" onmouseover="this.style.borderColor='rgba(255,255,255,.3)'" onmouseout="this.style.borderColor='var(--border)'">CLEAR SESSION</button>
+      </div>
+
+      <!-- Event detail panel -->
+      <div class="glass-card" style="padding:14px;display:none" id="event-detail-panel">
+        <div class="lv-label">Event Detail</div>
+        <div id="event-detail-content" style="font-family:var(--font-mono);font-size:9px;color:var(--muted);line-height:1.9"></div>
+      </div>
+
+    </div><!-- end col 2 -->
+
+    <!-- COL 3: Timeline -->
+    <div style="display:flex;flex-direction:column;min-height:0">
+      <div class="glass-card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:500px">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+          <div class="lv-label" style="margin-bottom:0">Audio Event Timeline</div>
+          <span id="timeline-count" style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">0 events</span>
+        </div>
+        <div id="live-timeline" style="flex:1;overflow-y:auto">
+          <div data-empty style="padding:20px;text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.15em">NO EVENTS YET</div>
+        </div>
+      </div>
+    </div><!-- end col 3 -->
+
+  </div><!-- end main grid -->
+</div><!-- end live-page -->
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+const LD={
+  socket:null,sessionId:null,isListening:false,
+  stream:null,audioCtx:null,analyser:null,processor:null,
+  rafId:null,pcmBuffer:null,pcmWriteIndex:0,
+  pcmSamplesWritten:0,samplesSinceSend:0,
+  chunkCount:0,latencies:[],timelineEvents:[],
+  anomalyCount:0,selectedEventId:null,
+};
+const WINDOW_SEC=5.0,STRIDE_SEC=2.0;
+let _inFlight=false,_pending=null;
+
+function setPill(id,text,cls){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=text;
+  el.className='lv-pill '+(cls||'offline');
+}
+function setVal(id,val){
+  const el=document.getElementById(id);
+  if(el)el.textContent=(val===null||val===undefined)?'—':val;
+}
+function setStep(id,on){
+  const el=document.getElementById(id);
+  if(el)el.className='step-dot'+(on?' on':'');
+}
+function syncHeaderMic(text,color){
+  const el=document.getElementById('header-mic-status');
+  if(el){el.textContent='MIC '+text;el.style.color=color||'var(--muted)';}
+}
+function fmtTime(iso){
+  if(!iso)return'—';
+  try{return new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+  catch{return'—';}
+}
+function encodeWav(samples,sr){
+  const bps=2,buf=new ArrayBuffer(44+samples.length*bps),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,36+samples.length*bps,true);
+  w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);
+  v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*bps,true);
+  v.setUint16(32,bps,true);v.setUint16(34,16,true);w(36,'data');
+  v.setUint32(40,samples.length*bps,true);
+  for(let i=0;i<samples.length;i++){
+    const s=Math.max(-1,Math.min(1,samples[i]));
+    v.setInt16(44+i*bps,s<0?s*32768:s*32767,true);
+  }
+  return new Blob([buf],{type:'audio/wav'});
+}
+function readRolling(buf,wi){
+  const out=new Float32Array(buf.length);
+  out.set(buf.subarray(wi),0);
+  if(wi>0)out.set(buf.subarray(0,wi),buf.length-wi);
+  return out;
+}
+
+function initSocket(){
+  LD.socket=io({transports:['websocket','polling']});
+  LD.socket.on('connect',()=>{setPill('st-backend','CONNECTED','ready');setStep('step-connect',true);});
+  LD.socket.on('disconnect',()=>{setPill('st-backend','DISCONNECTED','offline');setStep('step-connect',false);});
+  LD.socket.on('session_started',(d)=>{
+    LD.sessionId=d.session_id;
+    setVal('sess-id',d.session_id?d.session_id.slice(0,8).toUpperCase():'—');
+    setVal('sess-start',fmtTime(d.started_at));
+    if(d.model_status)updateModelBadges(d.model_status);
+  });
+  LD.socket.on('session_stopped',()=>{LD.sessionId=null;});
+  LD.socket.on('analysis_result',handleAnalysisResult);
+  LD.socket.on('analysis_error',(d)=>{
+    console.warn('[LD]',d);
+    setPill('st-analysis','ERROR','offline');
+    _inFlight=false;
+    if(_pending&&LD.isListening){const b=_pending;_pending=null;sendChunk(b);}
+  });
+  LD.socket.on('model_status',updateModelBadges);
+  LD.socket.on('session_error',(d)=>alert('Session error: '+(d.error||'unknown')));
+  setInterval(()=>{if(LD.socket&&LD.socket.connected)LD.socket.emit('get_model_status',{});},15000);
+}
+
+function updateModelBadges(ms){
+  if(!ms)return;
+  const map={vad:'ms-vad',sound_event:'ms-sed',transcribe:'ms-asr'};
+  const labels={ready:'READY',loading:'LOADING',offline:'OFFLINE',requires_credentials:'NEEDS TOKEN',unavailable:'N/A',error:'ERROR'};
+  for(const[key,elId]of Object.entries(map)){
+    const st=(ms[key]||{}).status||'offline';
+    setPill(elId,labels[st]||st.toUpperCase(),st);
+  }
+}
+
+async function startMonitoring(){
+  if(LD.isListening)return;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    await audioCtx.resume();
+    const analyser=audioCtx.createAnalyser();
+    analyser.fftSize=2048;
+    const source=audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const processor=audioCtx.createScriptProcessor(4096,1,1);
+    const sr=audioCtx.sampleRate;
+    const winSamples=Math.round(sr*WINDOW_SEC);
+    const strideSamples=Math.round(sr*STRIDE_SEC);
+    LD.stream=stream;LD.audioCtx=audioCtx;LD.analyser=analyser;LD.processor=processor;
+    LD.pcmBuffer=new Float32Array(winSamples);
+    LD.pcmWriteIndex=0;LD.pcmSamplesWritten=0;LD.samplesSinceSend=0;
+    processor.onaudioprocess=(e)=>{
+      const input=e.inputBuffer.getChannelData(0);
+      e.outputBuffer.getChannelData(0).fill(0);
+      if(!LD.isListening)return;
+      for(let i=0;i<input.length;i++){
+        LD.pcmBuffer[LD.pcmWriteIndex]=input[i];
+        LD.pcmWriteIndex=(LD.pcmWriteIndex+1)%winSamples;
+      }
+      LD.pcmSamplesWritten=Math.min(winSamples,LD.pcmSamplesWritten+input.length);
+      LD.samplesSinceSend+=input.length;
+      if(LD.pcmSamplesWritten===winSamples&&LD.samplesSinceSend>=strideSamples){
+        LD.samplesSinceSend%=strideSamples;
+        sendChunk(encodeWav(readRolling(LD.pcmBuffer,LD.pcmWriteIndex),sr));
+      }
+    };
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+    LD.isListening=true;
+    setPill('st-mic','ACTIVE','ready');
+    setPill('st-analysis','RUNNING','ready');
+    setStep('step-listen',true);
+    syncHeaderMic('LISTENING','var(--success)');
+    document.getElementById('btn-start').style.display='none';
+    document.getElementById('btn-stop').style.display='inline-flex';
+    document.querySelector('.live-page').classList.add('is-listening');
+    document.getElementById('waveform-idle').style.display='none';
+    drawWaveform();
+    if(LD.socket&&LD.socket.connected)LD.socket.emit('start_session',{});
+  }catch(err){
+    console.error(err);
+    setPill('st-mic','ERROR','offline');
+    syncHeaderMic('ERROR','var(--danger)');
+    alert('Microphone permission required. Please allow microphone access and try again.');
+  }
+}
+
+function stopMonitoring(){
+  if(LD.processor){LD.processor.onaudioprocess=null;LD.processor.disconnect();LD.processor=null;}
+  if(LD.stream){LD.stream.getTracks().forEach(t=>t.stop());LD.stream=null;}
+  if(LD.audioCtx){LD.audioCtx.close();LD.audioCtx=null;}
+  if(LD.rafId){cancelAnimationFrame(LD.rafId);LD.rafId=null;}
+  LD.isListening=false;LD.pcmBuffer=null;
+  if(LD.socket&&LD.sessionId)LD.socket.emit('stop_session',{session_id:LD.sessionId});
+  setPill('st-mic','IDLE','offline');
+  setPill('st-analysis','PAUSED','offline');
+  setStep('step-listen',false);setStep('step-analyze',false);
+  syncHeaderMic('IDLE','var(--muted)');
+  document.getElementById('btn-start').style.display='inline-flex';
+
+function handleAnalysisResult(data){
+  _inFlight=false;
+  if(_pending&&LD.isListening){const b=_pending;_pending=null;sendChunk(b);}
+  if(!data||!data.success){setPill('st-analysis','ERROR','offline');return;}
+
+  setPill('st-analysis','RUNNING','ready');
+  LD.chunkCount++;
+  setVal('sess-chunks',LD.chunkCount);
+
+  if(data.total_latency_ms){
+    LD.latencies.push(data.total_latency_ms);
+    if(LD.latencies.length>20)LD.latencies.shift();
+    const avg=Math.round(LD.latencies.reduce((a,b)=>a+b,0)/LD.latencies.length);
+    setVal('sess-latency',avg+' ms');
+    if(window.setDashboardState)setDashboardState('LISTENING',avg);
+  }
+
+  if(data.model_status)updateModelBadges(data.model_status);
+
+  // Signal
+  const sig=data.signal||{};
+  setVal('sig-rms',sig.rms!==undefined?sig.rms.toFixed(4):'—');
+  setVal('sig-peak',sig.peak!==undefined?sig.peak.toFixed(4):'—');
+  setVal('sig-sc',sig.spectral_centroid?sig.spectral_centroid.toFixed(0)+' Hz':'—');
+  setVal('sig-df',sig.dominant_freq?sig.dominant_freq.toFixed(0)+' Hz':'—');
+  setVal('sig-zcr',sig.zcr!==undefined?sig.zcr.toFixed(4):'—');
+  setVal('sig-sil',sig.silence_pct!==undefined?sig.silence_pct.toFixed(1)+'%':'—');
+  setVal('sig-dur',sig.duration_sec!==undefined?sig.duration_sec.toFixed(2)+'s':'—');
+  setVal('sig-delta',sig.energy_delta!==undefined?sig.energy_delta.toFixed(4):'—');
+  setVal('sig-latency',data.total_latency_ms?data.total_latency_ms+' ms total':'');
+  const tb=document.getElementById('transient-badge');
+  if(tb)tb.style.display=sig.transient?'inline-flex':'none';
+
+  // VAD
+  const vad=data.vad||{};
+  const hasSpeech=vad.speech_detected;
+  setPill('vad-badge',hasSpeech?'VAD: SPEECH':'VAD: SILENCE',hasSpeech?'ready':'skipped');
+  setVal('vad-ratio','Speech: '+(vad.speech_ratio!==undefined?(vad.speech_ratio*100).toFixed(0)+'%':'—'));
+  setVal('ms-vad2',vad.latency_ms?vad.latency_ms+' ms':'');
+  const segEl=document.getElementById('vad-segments');
+  if(segEl){
+    const segs=vad.segments||[];
+    segEl.innerHTML=segs.length
+      ?segs.map(s=>`<span class="vad-seg">${s.start_sec.toFixed(1)}s–${s.end_sec.toFixed(1)}s</span>`).join('')
+      :'<span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">No speech segments</span>';
+  }
+
+  // SED
+  const sed=data.sound_event||{};
+  setVal('sed-label',sed.top_label||'—');
+  setVal('sed-conf',sed.top_confidence?(sed.top_confidence*100).toFixed(1)+'%':'—');
+  const sedSt=sed.status||'offline';
+  setPill('sed-status',sedSt==='ready'?'READY':sedSt==='skipped'?'SKIPPED':'OFFLINE',
+    sedSt==='ready'?'ready':sedSt==='skipped'?'skipped':'offline');
+  setVal('sed-latency',sed.latency_ms?sed.latency_ms+' ms':'');
+  const predsEl=document.getElementById('sed-preds');
+  if(predsEl){
+    const preds=sed.predictions||[];
+    predsEl.innerHTML=preds.length
+      ?preds.slice(0,7).map((p,i)=>{
+          const pct=(p.confidence*100).toFixed(1);
+          return`<div class="pred-row">
+            <span style="font-family:var(--font-mono);font-size:9px;color:${i===0?'var(--text)':'var(--muted)'};width:185px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.label}</span>
+            <div class="pred-bar-bg"><div class="pred-bar-fill" style="width:${pct}%"></div></div>
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--accent);width:42px;text-align:right">${pct}%</span>
+          </div>`;
+        }).join('')
+      :'<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">No predictions</div>';
+  }
+
+  // Transcription
+  const tr=data.transcription||{};
+  const trBox=document.getElementById('transcript-box');
+  if(trBox){
+    if(tr.status==='ready'&&tr.text)trBox.textContent=tr.text;
+    else if(tr.status==='skipped')trBox.textContent='(No speech detected in this window)';
+    else if(tr.status==='offline')trBox.textContent='(Transcription model offline)';
+  }
+  const trSt=tr.status||'offline';
+  setPill('transcript-status',trSt==='ready'?'READY':trSt==='skipped'?'SKIPPED':'OFFLINE',
+    trSt==='ready'?'ready':trSt==='skipped'?'skipped':'offline');
+  setVal('transcript-lang',tr.language?'Lang: '+tr.language.toUpperCase():'—');
+  const uncEl=document.getElementById('transcript-uncertain');
+  if(uncEl)uncEl.style.display=tr.uncertain?'block':'none';
+
+  // Anomaly
+  const an=data.anomaly||{};
+  const anStatus=document.getElementById('anomaly-status');
+  const anScore=document.getElementById('anomaly-score');
+  const anZ=document.getElementById('anomaly-z');
+  const anBaseline=document.getElementById('anomaly-baseline');
+  const anBar=document.getElementById('anomaly-bar');
+  const anThresh=document.getElementById('anomaly-threshold');
+  if(an.status==='baseline_building'){
+    if(anStatus){anStatus.textContent='BUILDING BASELINE';anStatus.className='anomaly-building';}
+    if(anScore)anScore.textContent='—';
+    if(anZ)anZ.textContent='—';
+    if(anBaseline)anBaseline.textContent=(an.baseline_chunks||0)+' / '+(an.baseline_chunks<30?30:an.baseline_chunks)+' chunks';
+    if(anBar)anBar.style.width='0%';
+  }else if(an.status==='ready'){
+    const isAnom=an.is_anomaly;
+    if(anStatus){
+      anStatus.textContent=isAnom?'⚠ ANOMALY DETECTED':'NORMAL';
+      anStatus.className=isAnom?'anomaly-detected':'anomaly-normal';
+    }
+    if(anScore)anScore.textContent=an.anomaly_score!==undefined?(an.anomaly_score*100).toFixed(1)+'%':'—';
+    if(anZ)anZ.textContent=an.z_score!==undefined?an.z_score.toFixed(2)+'σ':'—';
+    if(anBaseline)anBaseline.textContent=(an.baseline_chunks||0)+' chunks';
+    if(anBar){
+      anBar.style.width=Math.min(100,(an.anomaly_score||0)*100)+'%';
+      anBar.style.background=isAnom?'#e5b75f':'var(--accent)';
+    }
+    if(anThresh)anThresh.textContent=(an.threshold||2.5).toFixed(1);
+    if(isAnom){
+      LD.anomalyCount++;
+      setVal('sess-anomalies',LD.anomalyCount);
+    }
+  }
+
+  addTimelineEvent(data);
+}
+
+function addTimelineEvent(data){
+  LD.timelineEvents.unshift(data);
+  if(LD.timelineEvents.length>200)LD.timelineEvents.pop();
+  const tl=document.getElementById('live-timeline');
+  if(!tl)return;
+  const empty=tl.querySelector('[data-empty]');
+  if(empty)empty.remove();
+
+  const sed=data.sound_event||{},vad=data.vad||{},tr=data.transcription||{},sig=data.signal||{},an=data.anomaly||{};
+  const typeLabel=vad.speech_detected?'SPEECH':(an.is_anomaly?'ANOMALY':'SOUND');
+  const mainLabel=vad.speech_detected&&tr.text?tr.text.slice(0,55):(sed.top_label||'Ambient');
+  const conf=sed.top_confidence?(sed.top_confidence*100).toFixed(0)+'%':'';
+  const rms=sig.rms?'RMS '+sig.rms.toFixed(3):'';
+
+  const chip=document.createElement('div');
+  chip.className='tl-chip'+(an.is_anomaly?' is-anomaly':'');
+  chip.dataset.eventId=data.event_id;
+  chip.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="tl-chip-type">${typeLabel}</span>
+      <span class="tl-chip-time">${fmtTime(data.timestamp)}</span>
+    </div>
+    <div class="tl-chip-label">${mainLabel}</div>
+    <div class="tl-chip-sub">${[conf,rms].filter(Boolean).join(' · ')}</div>
+  `;
+  chip.onclick=()=>selectEvent(data.event_id);
+  tl.prepend(chip);
+  while(tl.children.length>100)tl.removeChild(tl.lastChild);
+  const countEl=document.getElementById('timeline-count');
+  if(countEl)countEl.textContent=LD.timelineEvents.length+' events';
+}
+
+function selectEvent(eventId){
+  LD.selectedEventId=eventId;
+  document.querySelectorAll('.tl-chip').forEach(c=>c.classList.toggle('selected',c.dataset.eventId===eventId));
+  const ev=LD.timelineEvents.find(e=>e.event_id===eventId);
+  if(!ev)return;
+  const panel=document.getElementById('event-detail-panel');
+  const content=document.getElementById('event-detail-content');
+  if(!panel||!content)return;
+  panel.style.display='block';
+  const sed=ev.sound_event||{},vad=ev.vad||{},tr=ev.transcription||{},sig=ev.signal||{},an=ev.anomaly||{};
+  content.innerHTML=`
+    <div><strong style="color:var(--text)">Sound:</strong> ${sed.top_label||'—'} (${sed.top_confidence?(sed.top_confidence*100).toFixed(1)+'%':'—'})</div>
+    <div><strong style="color:var(--text)">Speech:</strong> ${vad.speech_detected?'Yes':'No'} · ratio ${vad.speech_ratio?(vad.speech_ratio*100).toFixed(0)+'%':'—'}</div>
+    <div><strong style="color:var(--text)">Transcript:</strong> ${tr.text||'—'}</div>
+    <div><strong style="color:var(--text)">RMS / Peak:</strong> ${sig.rms||'—'} / ${sig.peak||'—'}</div>
+    <div><strong style="color:var(--text)">Dom. Freq:</strong> ${sig.dominant_freq?sig.dominant_freq.toFixed(0)+' Hz':'—'}</div>
+    <div><strong style="color:var(--text)">Anomaly:</strong> ${an.is_anomaly?'⚠ YES (z='+an.z_score+')':'No'}</div>
+    <div><strong style="color:var(--text)">Latency:</strong> ${ev.total_latency_ms||'—'} ms</div>
+    <div><strong style="color:var(--text)">Time:</strong> ${fmtTime(ev.timestamp)}</div>
+  `;
+}
+
+function clearSession(){
+  LD.timelineEvents=[];LD.chunkCount=0;LD.latencies=[];LD.anomalyCount=0;
+  setVal('sess-chunks','0');setVal('sess-latency','—');setVal('sess-anomalies','0');
+  const tl=document.getElementById('live-timeline');
+  if(tl)tl.innerHTML='<div data-empty style="padding:20px;text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.15em">NO EVENTS YET</div>';
+  const countEl=document.getElementById('timeline-count');
+  if(countEl)countEl.textContent='0 events';
+  const panel=document.getElementById('event-detail-panel');
+  if(panel)panel.style.display='none';
+}
+
+function drawWaveform(){
+  const canvas=document.getElementById('live-waveform-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const buf=new Uint8Array(LD.analyser?LD.analyser.fftSize:2048);
+  const draw=()=>{
+    if(!LD.isListening||!LD.analyser)return;
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+    canvas.width=w*dpr;canvas.height=h*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    LD.analyser.getByteTimeDomainData(buf);
+    let ss=0,peak=0;
+    for(const s of buf){const a=(s-128)/128;ss+=a*a;peak=Math.max(peak,Math.abs(a));}
+    const level=Math.min(100,Math.round(Math.sqrt(ss/buf.length)*250));
+    const color=peak<0.1?'#74c99b':peak<0.35?'#e5b75f':'#ed655d';
+    const lb=document.getElementById('audio-level-bar');
+    const lp=document.getElementById('audio-level-pct');
+    if(lb){lb.style.width=level+'%';lb.style.background=color;}
+    if(lp){lp.textContent=level+'%';lp.style.color=color;}
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(0,0,w,h);
+    ctx.lineWidth=1.5;ctx.strokeStyle=color;
+    ctx.beginPath();
+    const slice=buf.length/w;
+    for(let i=0;i<w;i++){
+      const y=((buf[Math.floor(i*slice)]-128)/128)*(h/2)*0.88+h/2;
+      i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);
+    }
+    ctx.stroke();
+    LD.rafId=requestAnimationFrame(draw);
+  };
+  if(LD.rafId)cancelAnimationFrame(LD.rafId);
+  LD.rafId=requestAnimationFrame(draw);
+}
+
+window.startMonitoring=startMonitoring;
+window.stopMonitoring=stopMonitoring;
+window.clearSession=clearSession;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  initSocket();
+  fetch('/api/live/status').then(r=>r.json()).then(d=>{
+    if(d.models)updateModelBadges(d.models);
+  }).catch(()=>{});
+});
+</script>
+{% endblock %}
