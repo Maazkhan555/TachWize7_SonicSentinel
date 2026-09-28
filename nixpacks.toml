@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python313", "ffmpeg", "libsndfile"]
+nixPkgs = ["python313", "python313Packages.pip", "ffmpeg", "libsndfile"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
